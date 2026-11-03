@@ -6,12 +6,18 @@
 > 上一版 README 已被证实有多处与代码不符（清单见 [CHANGELOG.md](CHANGELOG.md) 末尾），请不要再引用旧版内容。
 > 规则细节看 [docs/RULES.md](docs/RULES.md)｜完成度与缺陷看 [docs/STATUS.md](docs/STATUS.md)｜改动历史看 [CHANGELOG.md](CHANGELOG.md)。
 >
-> ⚠️ **新会话请先读 [docs/SESSION_2026-11-03.md](docs/SESSION_2026-11-03.md)**：
-> 里面写着「哪些规则刚改过、哪些数据和模型已作废、明天从哪一步接着干」。
-> 按那份文档的「接手清单」走，5 分钟就能进入状态。
+> ⚠️ **新会话请先读最近一份交接文档**：
+> [docs/SESSION_2026-11-04.md](docs/SESSION_2026-11-04.md)（性能测量与硬件选型，最新）
+> ｜ [docs/SESSION_2026-11-03.md](docs/SESSION_2026-11-03.md)（规则/引擎/界面）
+> 按文档里的「接手清单」走，5 分钟就能进入状态。
 >
 > 📊 **写论文 / 复现实验请读 [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md)**：
-> 每个实验的编号、命令、参数、实测数字与结论（含负结果），文末有「论文素材清单」。
+> E01–E19 的编号、命令、参数、实测数字与结论（含负结果），文末有「论文素材清单」。
+>
+> 🧮 **测速与选型**：[docs/HARDWARE.md](docs/HARDWARE.md)（配置评估）、
+> [docs/RENT_PLAN.md](docs/RENT_PLAN.md)（云服务器租用方案）。
+>
+> 🔗 **代码仓库**：https://github.com/gyk0627/Guandan-AI-Lab （私有）
 
 ---
 
@@ -73,7 +79,7 @@
 | **数据集合并工具**（合并多份 npz，`cand_offsets` 整体平移） | `training/merge_datasets.py` |
 | **行为克隆基线（追平老师）**：参考模型 v7 —— 验证一致率 0.728、对启发式 **51.50%**、对随机 **91.25%** | `training/train_bc.py`、`models/bc_v7_5000_40ep.pt` |
 | **神经网络策略接入评估器**（成对换座位、CUDA 推理） | `players/neural.py`、`training/evaluate_neural.py` |
-| pytest 测试网（**324 个用例，全绿**） | `tests/`、`pytest.ini` |
+| pytest 测试网（**370 个用例，全绿**） | `tests/`、`pytest.ini` |
 
 ### 🟠 进行中 / 待追认（代码能跑，但还没定死或还没达标）
 
@@ -198,7 +204,7 @@ GuanDan-AI-Lab/
 │  ├─ analyze_game.py            ← 复盘统计（出牌/过牌比例、可疑决策、关键行动）
 │  └─ game_20261102_012035_42.jsonl  ← ⚠️ 旧规则时期的对局日志
 │
-├─ tests/                        ← 测试网（324 个用例；没装 torch 时跳过 20 条，为 304）
+├─ tests/                        ← 测试网（370 个用例；未装 torch 时会跳过需要 torch 的用例）
 │  ├─ __init__.py
 │  ├─ test_ranks.py              ← 牌力、级牌、顺子窗口（15）
 │  ├─ test_patterns.py           ← 9 种牌型 + 非法边界（49）
@@ -288,7 +294,7 @@ python -m venv .venv
 - 只有 `training/train_bc.py`、`training/evaluate_neural.py`、`players/neural.py`
   和 `tests/test_training.py` 需要 torch。
 - **没装 torch 的机器上，`pytest` 会自动跳过 `tests/test_training.py` 的 20 条**
-  （用 `pytest.importorskip("torch")`），所以测试数会从 324 变成 304。这是预期行为，不是故障。
+  （用 `pytest.importorskip("torch")`），所以需要 torch 的用例会被跳过，实际数字以输出为准。这是预期行为，不是故障。
 
 ### 5.3 重要约定
 
@@ -321,7 +327,7 @@ $env:PYTHONIOENCODING='utf-8'
 & .\.venv\Scripts\python.exe -m pytest tests -q
 ```
 
-预期输出类似：`324 passed in 12.6s`
+预期输出类似：`370 passed in 20s`
 （如果数字和这里不同，以你跑出来的为准，并去看 `docs/STATUS.md` 第 4 节的已知缺陷。
 没装 torch 的机器上会跳过 20 条、显示 `304 passed`，属预期。）
 
@@ -669,6 +675,37 @@ $env:PYTHONIOENCODING='utf-8'
 
 ---
 
+## 六·五、性能测试与硬件选型（2026-11-04 新增）
+
+一键脚本（仓库根目录，双击即可）：
+
+| 脚本 | 作用 |
+|---|---|
+| `run_speed_test.bat` | 生成对局 + 导出数据的速度，并换算成「1000 万局要多久」 |
+| `run_train_speed.bat` | **真跑** N 轮训练并逐轮计时（数据准备/GPU 计算/显存峰值拆分） |
+| `run_benchmark.bat` | 机器综合基准：CPU 模拟 / GPU 推理（batch 1–128）/ 训练 / 导出 / 端到端 |
+
+`tools/` 下对应工具：
+
+| 工具 | 用途 |
+|---|---|
+| `benchmark_suite.py` | 五模块基准，输出 JSON，可 `--compare` 基线 |
+| `scaling_test.py` | 1/2/4/8/12/16 进程扩展性——**决定该买多少核** |
+| `speed_test.py` | 对局生成与导出吞吐 |
+| `train_speed.py` | 训练逐轮耗时与显存 |
+| `roofline_probe.py` | 算力 vs 显存带宽 vs kernel launch 开销的定量判断 |
+| `dataloading_test.py` | 数据准备并行化收益（等价 DataLoader workers） |
+| `gpu_probe.py` / `gpu_metrics.py` / `resource_sampler.py` | GPU 与整机资源采样（Windows + Linux） |
+
+**已得到的结论**（详见 [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) E16–E19）：
+
+- 本机并行上限 **2.0–2.3×**（4~8 进程见顶），瓶颈是平台不是 GPU；
+- 训练步只用到峰值算力 **1.55%**、带宽 **0.40%**，瓶颈是**每步固定开销（kernel launch）**；
+- 因此"先加 batch / 上 CUDA Graphs"比"买更快的卡"更划算；显存只需 0.34 GB，24GB 足够。
+
+> ⚠️ GPU 占用率要用**任务管理器口径**（Windows GPU Engine 计数器）；
+> `nvidia-smi` 的 `utilization.gpu` 在 Windows/WDDM 上会低估（实测同一段训练：45% vs 96%）。
+
 ## 七、如何复现「今天这套实验」
 
 按顺序复制即可（Windows PowerShell，约 2.5 分钟跑完，含 300 局采集 + 导出）：
@@ -724,7 +761,7 @@ $env:PYTHONIOENCODING='utf-8'
 
 | 步骤 | 预期关键输出 |
 |---|---|
-| 1 | `324 passed in X.XXs`（没装 torch 时是 `304 passed`） |
+| 1 | `370 passed in X.XXs`（没装 torch 时会跳过需要 torch 的用例，数字更小） |
 | 2 | `对局数：300`、`决策样本：27794`、`出牌/过牌：11800 / 15994`、`平均步数：92.65` |
 | 3 | `对局：300   决策：27794`、`结构校验通过。` |
 | 4 | `样本数：27794（300 局）`、`平均候选：23.21   最大候选：1635`、`过牌比例：0.5754` |
@@ -751,7 +788,7 @@ $env:PYTHONIOENCODING='utf-8'
 
 | 阶段 | 名称 | 状态 |
 |---|---|---|
-| 1 | 规则引擎与基础对局 | ✅ **基本完成**（规则表 v2 + 324 个测试；剩 Q1/Q2 等规则待确认） |
+| 1 | 规则引擎与基础对局 | ✅ **完成**（规则定稿 + 370 个测试） |
 | 2 | 随机与启发式策略 | ✅ **基本完成**（随机 + 启发式，启发式已接入级牌） |
 | 3 | 对局数据采集与复盘 | ✅ **基本完成**（300 / 2000 / 3000 / 合并 5000 局数据集、结构校验、npz 导出、复盘脚本；缺人类对局数据） |
 | 4 | 人类高手策略学习 | ❌ 未开始（缺人类对局数据与记录格式） |
@@ -824,7 +861,7 @@ $env:PYTHONIOENCODING='utf-8'
 | 训练时 CUDA out of memory | 候选宽度太大（最大 1601）+ batch 太大 | 降 `--batch-size`（如 32/16），或按候选数分桶；不要全局补边 |
 | `FileNotFoundError: 找不到模型：models\...` | 路径写错或还没训练 | 用参考模型 `models\bc_v7_5000_40ep.pt`，或先跑 `training.train_bc` |
 | 神经网络评估结果明显偏低 | 用了 `--level none`（训练分布外），或没写 `--checkpoint` 拿到了过拟合的 `bc_v3_40ep.pt` | 加 `--level 2`，并显式指定参考模型 |
-| 测试数量与本文不同 | 代码在并行开发；或没装 torch（跳过 20 条，324 → 304） | 以你跑出来的为准，并更新 `docs/STATUS.md` |
+| 测试数量与本文不同 | 代码在并行开发；或没装 torch（相关用例会被跳过） | 以你跑出来的为准，并更新 `docs/STATUS.md` |
 
 ---
 
