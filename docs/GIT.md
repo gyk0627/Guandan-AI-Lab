@@ -35,7 +35,12 @@ GuanDan-AI-Lab/
 
 ### 1. 在平台上新建**私有**仓库
 
-- Gitee（国内快）：https://gitee.com → 新建仓库 → **私有**
+**已创建并推送**：https://github.com/gyk0627/Guandan-AI-Lab （私有）
+- 首次推送：`git push -u origin release:main`（已完成）
+- `release` 分支已跟踪 `origin/main`
+
+以后要换/加远程（例如国内用 Gitee 做镜像）：
+- Gitee：https://gitee.com → 新建仓库 → **私有**
 - GitHub：https://github.com → New repository → **Private**
 - 不要勾选"初始化 README/.gitignore"，保持空仓库
 
@@ -45,11 +50,11 @@ GuanDan-AI-Lab/
 $git = 'D:\software\Git\cmd\git.exe'
 cd C:\Users\qq165\Documents\deepseek-harness\default-workspace\GuanDan-AI-Lab
 
-# 添加远程（把 URL 换成你自己的）
-& $git remote add origin https://gitee.com/<你的账号>/GuanDan-AI-Lab.git
+# 远程（已配置好，换机器时才需要重配）
+git remote add origin https://github.com/gyk0627/Guandan-AI-Lab.git
 
 # 把本地的 release 分支推成远程的 main
-& $git push -u origin release:main
+git push -u origin release:main
 ```
 
 之后日常提交：
