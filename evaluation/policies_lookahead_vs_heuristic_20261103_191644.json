@@ -1,0 +1,19 @@
+{
+  "a": "lookahead",
+  "b": "heuristic",
+  "games": 200,
+  "a_wins": 52,
+  "b_wins": 148,
+  "a_win_rate": 0.26,
+  "ci_low": 0.20413736892786316,
+  "ci_high": 0.32490871391293097,
+  "a_as_team_a": 0.25,
+  "a_as_team_b": 0.27,
+  "pairs_both_win": 7,
+  "pairs_split": 38,
+  "pairs_both_lose": 55,
+  "avg_steps": 105.32,
+  "avg_ms": 370.4489004999414,
+  "lookahead_ratio": 0.9045038943447342,
+  "lookahead_overrides": 0
+}

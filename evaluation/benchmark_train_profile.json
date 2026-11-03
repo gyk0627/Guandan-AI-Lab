@@ -1,0 +1,57 @@
+{
+  "created": "2026-11-03 23:47:42",
+  "host": {
+    "host": "Laptop",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "cpu_count": 18,
+    "python": "3.13.17",
+    "torch": "2.11.0+cu128",
+    "cuda_available": true,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  },
+  "modules": {
+    "train": {
+      "epochs": 2,
+      "bc_seconds_per_epoch": 23.75,
+      "bc_best_val_acc": 0.6093,
+      "value_seconds_per_epoch": 5.21,
+      "value_best_val_auc": 0.6997,
+      "module_seconds": 57.94
+    }
+  },
+  "resources": {
+    "cpu_avg": 20.7,
+    "free_mem_mb": 10538.1,
+    "gpu_avg": 26.0,
+    "gpu_peak": 39.0,
+    "gpu_mem_peak_mb": 4336.0,
+    "power_avg_w": 28.4,
+    "power_peak_w": 36.1,
+    "temp_peak_c": 53.0,
+    "gpu_clock_avg_mhz": 2680.0,
+    "gpu_clock_peak_mhz": 2970.0,
+    "per_core_avg": [
+      41.3,
+      80.0,
+      17.2,
+      15.9,
+      16.4,
+      6.6,
+      40.8,
+      41.7,
+      38.7,
+      44.6,
+      3.0,
+      4.3,
+      3.7,
+      4.8,
+      10.1,
+      9.7,
+      4.9,
+      10.0
+    ],
+    "cores_busy_over_50pct": 1,
+    "samples": 16
+  }
+}

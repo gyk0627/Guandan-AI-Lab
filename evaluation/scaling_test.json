@@ -1,0 +1,46 @@
+[
+  {
+    "workers": 1,
+    "games": 8,
+    "decisions": 862,
+    "elapsed": 4.84,
+    "games_per_second": 1.65,
+    "decisions_per_second": 178.0,
+    "cpu_avg": 21.7,
+    "cpu_peak": 30.8,
+    "free_mem_avg": 13110.0,
+    "gpu_avg": 11.1,
+    "gpu_peak": 24.0,
+    "gpu_mem_peak": 1946.0,
+    "samples": 23,
+    "threads_per_proc": 0,
+    "seats": [
+      "neural",
+      "neural",
+      "neural",
+      "neural"
+    ]
+  },
+  {
+    "workers": 2,
+    "games": 8,
+    "decisions": 903,
+    "elapsed": 3.92,
+    "games_per_second": 2.04,
+    "decisions_per_second": 230.3,
+    "cpu_avg": 29.5,
+    "cpu_peak": 37.2,
+    "free_mem_avg": 12430.6,
+    "gpu_avg": 15.5,
+    "gpu_peak": 47.0,
+    "gpu_mem_peak": 2095.0,
+    "samples": 18,
+    "threads_per_proc": 0,
+    "seats": [
+      "neural",
+      "neural",
+      "neural",
+      "neural"
+    ]
+  }
+]

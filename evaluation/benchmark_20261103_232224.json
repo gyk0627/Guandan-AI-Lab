@@ -1,0 +1,84 @@
+{
+  "created": "2026-11-03 23:22:20",
+  "host": {
+    "host": "Laptop",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "cpu_count": 18,
+    "python": "3.13.17",
+    "torch": "2.11.0+cu128",
+    "cuda_available": true,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  },
+  "modules": {
+    "cpu": {
+      "games": 20,
+      "decisions": 1940,
+      "seconds": 3.58,
+      "games_per_second": 5.58,
+      "decisions_per_second": 541.7,
+      "module_seconds": 3.58
+    },
+    "inference": {
+      "rows": [
+        {
+          "batch_size": 1,
+          "inferences": 2000,
+          "seconds": 0.695,
+          "inferences_per_second": 2878.0,
+          "ms_per_batch": 0.35
+        },
+        {
+          "batch_size": 8,
+          "inferences": 2000,
+          "seconds": 0.085,
+          "inferences_per_second": 23615.6,
+          "ms_per_batch": 0.34
+        },
+        {
+          "batch_size": 16,
+          "inferences": 2000,
+          "seconds": 0.042,
+          "inferences_per_second": 47912.3,
+          "ms_per_batch": 0.33
+        },
+        {
+          "batch_size": 32,
+          "inferences": 2016,
+          "seconds": 0.027,
+          "inferences_per_second": 75919.3,
+          "ms_per_batch": 0.42
+        },
+        {
+          "batch_size": 64,
+          "inferences": 2048,
+          "seconds": 0.01,
+          "inferences_per_second": 203463.2,
+          "ms_per_batch": 0.31
+        },
+        {
+          "batch_size": 128,
+          "inferences": 2048,
+          "seconds": 0.005,
+          "inferences_per_second": 412404.3,
+          "ms_per_batch": 0.31
+        }
+      ],
+      "encode_state_ms": 0.029,
+      "encode_action_ms": 0.005,
+      "per_decision_prepare_ms": 0.13,
+      "module_seconds": 1.21
+    }
+  },
+  "resources": {
+    "cpu_avg": 19.8,
+    "free_mem_mb": 15724.0,
+    "gpu_avg": 8.0,
+    "gpu_peak": 8.0,
+    "gpu_mem_peak_mb": 1733.0,
+    "power_avg_w": 13.9,
+    "power_peak_w": 13.9,
+    "temp_peak_c": 48.0,
+    "samples": 1
+  }
+}

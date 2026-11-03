@@ -1,0 +1,16 @@
+[
+  {
+    "epoch": 1,
+    "train_loss": 0.3817,
+    "pair_acc": 0.7724,
+    "val_within_decision_acc": 0.1813,
+    "seconds": 7.7
+  },
+  {
+    "epoch": 2,
+    "train_loss": 0.343,
+    "pair_acc": 0.7995,
+    "val_within_decision_acc": 0.1858,
+    "seconds": 14.9
+  }
+]

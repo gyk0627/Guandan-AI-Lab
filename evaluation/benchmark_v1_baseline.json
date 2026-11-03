@@ -1,0 +1,110 @@
+{
+  "created": "2026-11-03 23:22:51",
+  "host": {
+    "host": "Laptop",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "cpu_count": 18,
+    "python": "3.13.17",
+    "torch": "2.11.0+cu128",
+    "cuda_available": true,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  },
+  "modules": {
+    "cpu": {
+      "games": 20,
+      "decisions": 1940,
+      "seconds": 4.23,
+      "games_per_second": 4.73,
+      "decisions_per_second": 458.8,
+      "module_seconds": 4.23
+    },
+    "inference": {
+      "rows": [
+        {
+          "batch_size": 1,
+          "inferences": 1900,
+          "seconds": 1.001,
+          "inferences_per_second": 1897.7,
+          "ms_per_batch": 0.53
+        },
+        {
+          "batch_size": 8,
+          "inferences": 17920,
+          "seconds": 1.001,
+          "inferences_per_second": 17905.1,
+          "ms_per_batch": 0.45
+        },
+        {
+          "batch_size": 16,
+          "inferences": 41600,
+          "seconds": 1.003,
+          "inferences_per_second": 41472.4,
+          "ms_per_batch": 0.39
+        },
+        {
+          "batch_size": 32,
+          "inferences": 72640,
+          "seconds": 1.0,
+          "inferences_per_second": 72622.7,
+          "ms_per_batch": 0.44
+        },
+        {
+          "batch_size": 64,
+          "inferences": 163200,
+          "seconds": 1.003,
+          "inferences_per_second": 162733.4,
+          "ms_per_batch": 0.39
+        },
+        {
+          "batch_size": 128,
+          "inferences": 294400,
+          "seconds": 1.003,
+          "inferences_per_second": 293644.7,
+          "ms_per_batch": 0.44
+        }
+      ],
+      "encode_state_ms": 0.038,
+      "encode_action_ms": 0.006,
+      "per_decision_prepare_ms": 0.17,
+      "module_seconds": 6.37
+    },
+    "train": {
+      "epochs": 1,
+      "bc_seconds_per_epoch": 31.3,
+      "bc_best_val_acc": 0.5993,
+      "value_seconds_per_epoch": 7.29,
+      "value_best_val_auc": 0.6997,
+      "module_seconds": 38.6
+    },
+    "export": {
+      "games": 20,
+      "samples": 1940,
+      "seconds": 4.55,
+      "samples_per_second": 426.8,
+      "games_per_second": 4.4,
+      "module_seconds": 8.47
+    },
+    "pipeline": {
+      "games": 10,
+      "samples": 1051,
+      "generate_seconds": 3.23,
+      "export_seconds": 2.64,
+      "train_seconds": 0.08,
+      "total_seconds": 5.95,
+      "seconds_per_game_end_to_end": 0.59,
+      "module_seconds": 5.95
+    }
+  },
+  "resources": {
+    "cpu_avg": 20.5,
+    "free_mem_mb": 12881.0,
+    "gpu_avg": 20.0,
+    "gpu_peak": 56.0,
+    "gpu_mem_peak_mb": 4300.0,
+    "power_avg_w": 24.9,
+    "power_peak_w": 42.3,
+    "temp_peak_c": 52.0,
+    "samples": 24
+  }
+}

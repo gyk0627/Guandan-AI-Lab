@@ -1,0 +1,12 @@
+# 规则引擎 / 数据管线 / 评估器只需要这两个
+numpy==2.5.4
+pytest==9.2.0
+
+# 神经网络训练（阶段 5）需要 torch。
+# 本机装的是 CUDA 12.8 版本（RTX 5060 属于 Blackwell，必须 cu128 及以上）：
+#   & .\.venv\Scripts\python.exe -m pip install --index-url https://download.pytorch.org/whl/cu128 torch
+# 如果只需要 CPU：
+#   & .\.venv\Scripts\python.exe -m pip install torch
+# 没装 torch 时，tests/test_training.py 会自动跳过（pytest.importorskip），
+# 其余 296 条规则/引擎/编码/数据测试照常运行。
+torch==2.11.0

@@ -1,0 +1,19 @@
+{
+  "a": "lookahead",
+  "b": "neural",
+  "games": 200,
+  "a_wins": 49,
+  "b_wins": 151,
+  "a_win_rate": 0.245,
+  "ci_low": 0.19056777914685893,
+  "ci_high": 0.3090436838714848,
+  "a_as_team_a": 0.22,
+  "a_as_team_b": 0.27,
+  "pairs_both_win": 8,
+  "pairs_split": 33,
+  "pairs_both_lose": 59,
+  "avg_steps": 107.85,
+  "avg_ms": 443.5114264999902,
+  "lookahead_ratio": 0.9079614189962399,
+  "lookahead_overrides": 0
+}

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>掼蛋 · 人机对战</title>
+<style>
+  :root {
+    --felt: #0f5132;
+    --felt-dark: #0a3d26;
+    --line: rgba(255,255,255,.18);
+    --card-bg: #fdfdfb;
+    --red: #c62828;
+    --gold: #e8c46a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 35%, #14663f 0%, var(--felt) 45%, var(--felt-dark) 100%);
+    color: #eaf3ee;
+    display: flex; flex-direction: column;
+    user-select: none;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 18px;
+    background: rgba(0,0,0,.28);
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: .5px; }
+  .badge {
+    font-size: 12px; padding: 3px 9px; border-radius: 999px;
+    background: rgba(255,255,255,.12); border: 1px solid var(--line);
+  }
+  .badge.gold { color: var(--gold); border-color: rgba(232,196,106,.5); }
+  header .spacer { flex: 1; }
+  select, button {
+    font: inherit; font-size: 13px;
+    border-radius: 8px; border: 1px solid var(--line);
+    background: rgba(255,255,255,.1); color: #eaf3ee;
+    padding: 6px 12px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: rgba(255,255,255,.2); }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  button.primary {
+    background: var(--gold); color: #2a1c00; border-color: var(--gold); font-weight: 700;
+  }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+  main { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 18px; gap: 12px; }
+
+  .seats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .seat {
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 8px 12px; background: rgba(0,0,0,.18);
+    font-size: 13px; display: flex; flex-direction: column; gap: 3px;
+  }
+  .seat.active { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(232,196,106,.4) inset; }
+  .seat.out { opacity: .45; }
+  .seat .name { font-weight: 600; }
+  .seat .team-a { color: #9fd7ff; }
+  .seat .team-b { color: #ffb4a8; }
+  .seat .count { color: var(--gold); font-variant-numeric: tabular-nums; }
+  .seat .who {
+    font-size: 11px; color: rgba(234,243,238,.5); letter-spacing: .5px;
+  }
+  /* 谁刚出过牌：金色边框 + 角标 */
+  .seat.played {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px rgba(232,196,106,.55) inset, 0 0 14px rgba(232,196,106,.18);
+  }
+  .seat.played .who { color: var(--gold); }
+  .seat .tag {
+    display: none; font-size: 11px; padding: 1px 7px; border-radius: 999px;
+    background: var(--gold); color: #2a1c00; font-weight: 700; align-self: flex-start;
+  }
+  .seat.played .tag { display: inline-block; }
+
+  .mid-row { display: flex; gap: 12px; flex: none; height: 250px; }
+  .table-area {
+    flex: 1; min-height: 150px;
+    border: 1px solid var(--line); border-radius: 14px;
+    background: rgba(0,0,0,.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 14px;
+  }
+
+  .log-area {
+    width: 268px; flex: none;
+    border: 1px solid var(--line); border-radius: 14px;
+    background: rgba(0,0,0,.16);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .log-title {
+    font-size: 11px; color: rgba(234,243,238,.55);
+    padding: 7px 10px; border-bottom: 1px solid var(--line);
+  }
+  .log-list {
+    flex: 1; overflow-y: auto; padding: 6px 10px;
+    font-size: 12px; display: flex; flex-direction: column; gap: 3px;
+  }
+  .log-row { display: flex; gap: 8px; align-items: baseline; }
+  .log-who { min-width: 56px; flex: none; color: rgba(234,243,238,.85); }
+  .log-what { flex: 1; }
+  .log-row.team-a .log-who { color: #9fd7ff; }
+  .log-row.team-b .log-who { color: #ffb4a8; }
+  .log-row.is-pass .log-what { color: rgba(234,243,238,.4); }
+  @media (max-width: 900px) {
+    .mid-row { flex-direction: column; }
+    .log-area { width: auto; max-height: 150px; }
+  }
+  .table-label { font-size: 13px; color: rgba(234,243,238,.75); letter-spacing: .5px; }
+  .table-label b { color: var(--gold); font-weight: 700; }
+  .played { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; min-height: 66px; align-items: center; }
+  .empty-hint { color: rgba(234,243,238,.45); font-size: 13px; }
+
+  .hand-area { display: flex; flex-direction: column; gap: 10px; }
+  .hand { display: flex; flex-wrap: wrap; gap: 6px; min-height: 78px; align-items: flex-end; }
+  .card {
+    width: 46px; height: 66px; border-radius: 7px;
+    background: var(--card-bg); color: #17202a;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; position: relative;
+    box-shadow: 0 2px 6px rgba(0,0,0,.35);
+    transition: transform .08s ease, box-shadow .08s ease;
+    font-variant-numeric: tabular-nums;
+  }
+  .card .rank { font-size: 19px; font-weight: 700; line-height: 1; }
+  .card .suit { font-size: 17px; line-height: 1.15; }
+  .card.red { color: var(--red); }
+  .card.joker .rank { font-size: 15px; }
+  .card:hover { transform: translateY(-4px); }
+  .card.selected { transform: translateY(-12px); box-shadow: 0 0 0 2px var(--gold), 0 6px 14px rgba(0,0,0,.45); }
+  .card.dim { opacity: .3; cursor: default; }
+  /* 逢人配角标：红桃级牌可以当任意牌 */
+  .card .wild {
+    position: absolute; top: 2px; right: 2px;
+    background: #c1121f; color: #fff; font-size: 10px; font-weight: 700;
+    width: 16px; height: 16px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .status { font-size: 13px; min-height: 20px; color: var(--gold); }
+  .status.err { color: #ff9f9f; }
+  .hints { display: flex; gap: 8px; flex-wrap: wrap; }
+  .hint-btn { font-size: 12px; padding: 4px 9px; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.62);
+    display: none; align-items: center; justify-content: center; z-index: 10;
+  }
+  .overlay.show { display: flex; }
+  .panel {
+    background: #123b28; border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px 26px; min-width: 280px; text-align: center;
+  }
+  .panel h2 { margin: 0 0 10px; font-size: 18px; }
+  .panel ol { text-align: left; margin: 12px 0 18px; padding-left: 22px; font-size: 14px; line-height: 1.9; }
+  .panel .win { color: var(--gold); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>掼蛋 · 人机对战</h1>
+  <span class="badge gold" id="levelBadge">打 2</span>
+  <span class="badge" id="teamBadge">你是 0 号位 · A 队</span>
+  <span class="badge" id="policyBadge">对手：—</span>
+  <span class="badge" id="logBadge" title="本局记录文件（replay 目录）"></span>
+  <span class="spacer"></span>
+  <select id="levelSelect" title="选择本局打几">
+    <option>2</option><option>3</option><option>4</option><option>5</option>
+    <option>6</option><option>7</option><option>8</option><option>9</option>
+    <option>10</option><option>J</option><option>Q</option><option>K</option><option>A</option>
+  </select>
+  <button id="newBtn" class="primary">新的一局</button>
+</header>
+
+<main>
+  <section class="seats">
+    <div class="seat" id="seat1"></div>
+    <div class="seat" id="seat2"></div>
+    <div class="seat" id="seat3"></div>
+  </section>
+
+  <section class="mid-row">
+    <section class="table-area">
+      <div class="table-label" id="tableLabel">桌面</div>
+      <div class="played" id="played"><span class="empty-hint">还没有人出牌</span></div>
+    </section>
+
+    <aside class="log-area">
+      <div class="log-title">出牌流水（旧 → 新，自动滚到底）</div>
+      <div class="log-list" id="logList"></div>
+    </aside>
+  </section>
+
+  <section class="hand-area">
+    <div class="status" id="status"></div>
+    <div class="hand" id="hand"></div>
+    <div class="controls">
+      <button id="playBtn" class="primary" disabled>出牌</button>
+      <button id="passBtn" disabled>过牌</button>
+      <button id="hintBtn">提示</button>
+      <div class="hints" id="hints"></div>
+    </div>
+  </section>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <h2>对局结束</h2>
+    <div id="resultText"></div>
+    <ol id="rankingList"></ol>
+    <button class="primary" id="againBtn">再来一局</button>
+  </div>
+</div>
+
+<script>
+const SUIT_SYMBOL = { S: "♠", H: "♥", C: "♣", D: "♦" };
+const TEAM = { 0: "A", 1: "B", 2: "A", 3: "B" };
+const SEAT_NAME = { 0: "你", 1: "下家", 2: "队友", 3: "上家" };
+// 出牌顺序 0 -> 1 -> 2 -> 3：所以 1 号是「下家」（你之后出），3 号是「上家」（你之前出）
+
+let state = null;
+let hand = [];               // 排序后的手牌，下标就是这张牌的身份
+let selected = new Set();    // 选中的是「下标」，不是牌面文本
+                             // 两副牌里两张大王文本都是 BJ，用文本会把它们绑在一起
+
+function parseCard(text) {
+  if (text === "SJ") return { suit: null, rank: "小王", joker: true, red: false };
+  if (text === "BJ") return { suit: null, rank: "大王", joker: true, red: true };
+  const [suit, rank] = text.split(":");
+  return { suit, rank, joker: false, red: suit === "H" || suit === "D" };
+}
+
+function cardEl(text, clickable, index) {
+  const info = parseCard(text);
+  const el = document.createElement("div");
+  el.className = "card" + (info.red ? " red" : "") + (info.joker ? " joker" : "");
+  if (clickable && selected.has(index)) el.classList.add("selected");
+  el.innerHTML = info.joker
+    ? `<div class="rank">${info.rank}</div>`
+    : `<div class="rank">${info.rank}</div><div class="suit">${SUIT_SYMBOL[info.suit]}</div>`;
+
+  // 逢人配：红桃级牌可以当任意牌，不标出来会让人以为打错了牌
+  if (state && state.wildcard_text && text === state.wildcard_text) {
+    const badge = document.createElement("span");
+    badge.className = "wild";
+    badge.textContent = "配";
+    el.appendChild(badge);
+  }
+
+  if (clickable) {
+    el.onclick = () => {
+      if (selected.has(index)) selected.delete(index); else selected.add(index);
+      render();
+    };
+  }
+  return el;
+}
+
+// 手牌排序：2 最小，级牌上浮到 A 之后
+const BASE = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+function sortValue(text) {
+  const info = parseCard(text);
+  if (info.rank === "小王") return 16;
+  if (info.rank === "大王") return 17;
+  if (state && info.rank === state.level) return 15;
+  return BASE.indexOf(info.rank) + 2;
+}
+
+function applyState(next, keepSelection) {
+  state = next;
+  hand = [...state.hand].sort((a, b) => sortValue(a) - sortValue(b));
+
+  if (!keepSelection) {
+    selected = new Set();
+  } else {
+    // 手牌变了以后，越界的下标直接丢掉
+    selected = new Set([...selected].filter((index) => index < hand.length));
+  }
+
+  render();
+}
+
+function render() {
+
+  document.getElementById("levelBadge").textContent = state.level_text;
+  document.getElementById("teamBadge").textContent =
+    `你是 0 号位 · ${state.your_team} 队（队友 2 号位）`;
+  document.getElementById("policyBadge").textContent = `对手：${state.policy}`;
+  document.getElementById("logBadge").textContent =
+    state.log_name ? `记录：${state.log_name}` : "";
+
+  // 下拉框跟着真实级牌走，避免「界面显示打2、其实在打Q」
+  const levelSelect = document.getElementById("levelSelect");
+  if (state.level && [...levelSelect.options].some((o) => o.value === state.level)) {
+    levelSelect.value = state.level;
+  }
+
+  for (const seat of [1, 2, 3]) {
+    const el = document.getElementById("seat" + seat);
+    const out = state.finished.includes(seat);
+    const active = state.current_player === seat && !state.game_over;
+    const justPlayed =
+      state.last_player === seat && state.last_play && state.last_play.length;
+    el.className =
+      "seat" +
+      (active ? " active" : "") +
+      (out ? " out" : "") +
+      (justPlayed ? " played" : "");
+    const teamClass = TEAM[seat] === "A" ? "team-a" : "team-b";
+    el.innerHTML = `
+      <span class="tag">刚出牌</span>
+      <div class="name">${SEAT_NAME[seat]}（${seat} 号位 · <span class="${teamClass}">${TEAM[seat]} 队</span>）</div>
+      <div class="count">${out ? "已出完" : "剩 " + state.hand_counts[seat] + " 张"}</div>
+      <div class="who">${active ? "正在出牌…" : ""}</div>`;
+  }
+
+  // 桌面：本轮所有人都过了以后，last_play 会被清空。
+  // 这时保留「上一手」并标明本轮已结束，否则用户会以为自己的牌凭空消失了。
+  let shown = state.last_play;
+  let tableLabel;
+
+  if (shown && shown.length) {
+    tableLabel = `<b>${SEAT_NAME[state.last_player]}（${state.last_player} 号位）</b> 打出 ${state.last_play_text}`;
+  } else {
+    const lastPlay = [...(state.history || [])].reverse()
+      .find((item) => item.action_type === "play");
+
+    if (lastPlay) {
+      shown = lastPlay.cards;
+      tableLabel = `上一手（本轮结束）：<b>${SEAT_NAME[lastPlay.player]}（${lastPlay.player} 号位）</b> 打出 ${lastPlay.pattern}`;
+    } else {
+      shown = null;
+      tableLabel = "桌面：自由领出";
+    }
+  }
+
+  const played = document.getElementById("played");
+  played.innerHTML = "";
+  if (shown && shown.length) {
+    for (const text of shown) played.appendChild(cardEl(text, false));
+  } else {
+    played.innerHTML = '<span class="empty-hint">还没有人出牌</span>';
+  }
+  document.getElementById("tableLabel").innerHTML = tableLabel;
+
+  // 出牌流水：按顺序列出每一手，解决「只看到最近一手、顺序看不出来」的问题
+  const logList = document.getElementById("logList");
+  logList.innerHTML = "";
+  for (const item of state.history || []) {
+    const row = document.createElement("div");
+    row.className =
+      "log-row" +
+      (item.team === "A" ? " team-a" : " team-b") +
+      (item.action_type === "pass" ? " is-pass" : "");
+
+    const who = item.player === 0 ? "你" : `${SEAT_NAME[item.player]}(${item.player})`;
+
+    let what;
+    if (item.action_type === "pass") {
+      what = "过";
+    } else {
+      const cards = (item.cards || []).map((t) => {
+        const info = parseCard(t);
+        return info.joker ? info.rank : info.rank + SUIT_SYMBOL[info.suit];
+      }).join(" ");
+      what = `${item.pattern || ""} ${cards}`.trim();
+    }
+
+    row.innerHTML = `<span class="log-who"></span><span class="log-what"></span>`;
+    row.querySelector(".log-who").textContent = who;
+    row.querySelector(".log-what").textContent = what;
+    logList.appendChild(row);
+  }
+  logList.scrollTop = logList.scrollHeight;
+
+  const handEl = document.getElementById("hand");
+  handEl.innerHTML = "";
+  hand.forEach((text, index) => {
+    handEl.appendChild(cardEl(text, state.your_turn && !state.game_over, index));
+  });
+
+  const statusEl = document.getElementById("status");
+  statusEl.className = "status" + (state.error ? " err" : "");
+
+  const baseText =
+    state.error ||
+    state.message ||
+    (state.game_over
+      ? "对局结束"
+      : state.your_turn
+        ? (state.partner_leads
+            ? "队友的牌——可以压，但通常不划算"
+            : "轮到你出牌")
+        : `等待 ${SEAT_NAME[state.current_player]}（${state.current_player} 号位）出牌…`);
+
+  const picked = selected.size;
+  statusEl.textContent =
+    picked && state.your_turn ? `${baseText}（已选 ${picked} 张）` : baseText;
+
+  const canAct = state.your_turn && !state.game_over;
+
+  document.getElementById("playBtn").disabled = !canAct;
+  document.getElementById("passBtn").disabled = !(canAct && state.can_pass);
+  document.getElementById("hintBtn").disabled = !canAct;
+
+  if (state.game_over) showResult();
+  else document.getElementById("overlay").classList.remove("show");
+}
+
+function showResult() {
+  const ranking = state.ranking || [];
+  const names = ranking.map((p) => `${p} 号位（${TEAM[p]} 队）`);
+  const partnerPos = ranking.indexOf(2);
+  const win = ranking[0] === 0 || ranking[0] === 2;
+
+  document.getElementById("resultText").innerHTML = win
+    ? `<div class="win">${state.your_team} 队赢了这一局</div>`
+    : `<div>${TEAM[ranking[0]]} 队赢了这一局</div>`;
+  document.getElementById("rankingList").innerHTML =
+    names.map((n, i) => `<li>第${i + 1}名：${n}</li>`).join("");
+  document.getElementById("overlay").classList.add("show");
+}
+
+async function api(path, body) {
+  const options = body
+    ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+    : { method: "GET" };
+  const response = await fetch(path, options);
+  return response.json();
+}
+
+document.getElementById("playBtn").onclick = async () => {
+  const cards = [...selected].sort((a, b) => a - b).map((index) => hand[index]);
+
+  if (!cards.length) {
+    document.getElementById("status").textContent = "请先点选要出的牌";
+    return;
+  }
+
+  const next = await api("/api/play", { cards });
+
+  // 出错时保留选择，方便直接改；成功则清空
+  applyState(next, Boolean(next.error));
+};
+
+document.getElementById("passBtn").onclick = async () => {
+  applyState(await api("/api/pass", {}));
+};
+
+document.getElementById("hintBtn").onclick = async () => {
+  const data = await api("/api/legal");
+  const box = document.getElementById("hints");
+  box.innerHTML = "";
+  for (const play of data.plays) {
+    const btn = document.createElement("button");
+    btn.className = "hint-btn";
+    btn.textContent = play.map((t) => {
+      const info = parseCard(t);
+      return info.joker ? info.rank : info.rank + SUIT_SYMBOL[info.suit];
+    }).join(" ");
+    btn.onclick = () => {
+      // 把提示里的牌映射回手牌下标；同样的牌有几张就取几张，不会重复占同一张
+      const picked = [];
+      play.forEach((text) => {
+        const index = hand.findIndex(
+          (card, i) => card === text && !picked.includes(i)
+        );
+        if (index >= 0) picked.push(index);
+      });
+      selected = new Set(picked);
+      box.innerHTML = "";
+      render();
+    };
+    box.appendChild(btn);
+  }
+};
+
+async function newGame() {
+  document.getElementById("hints").innerHTML = "";
+  document.getElementById("overlay").classList.remove("show");
+  const level = document.getElementById("levelSelect").value;
+  applyState(await api("/api/new", { level }));
+}
+
+document.getElementById("newBtn").onclick = newGame;
+document.getElementById("againBtn").onclick = newGame;
+
+api("/api/state").then((next) => applyState(next));
+</script>
+</body>
+</html>

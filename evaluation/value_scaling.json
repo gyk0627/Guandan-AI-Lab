@@ -1,0 +1,26 @@
+[
+  {
+    "games": 300,
+    "samples": 28789,
+    "best_epoch": 3,
+    "val_auc": 0.5491
+  },
+  {
+    "games": 1000,
+    "samples": 95748,
+    "best_epoch": 20,
+    "val_auc": 0.5234
+  },
+  {
+    "games": 2000,
+    "samples": 191608,
+    "best_epoch": 16,
+    "val_auc": 0.6197
+  },
+  {
+    "games": 5000,
+    "samples": 478895,
+    "best_epoch": 3,
+    "val_auc": 0.6351
+  }
+]

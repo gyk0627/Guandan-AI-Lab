@@ -1,0 +1,11 @@
+{
+  "sources": [
+    "games_20261103_121919.npz",
+    "bc_policy_1000.npz"
+  ],
+  "samples": 580805,
+  "candidates": 13864130,
+  "games": 6000,
+  "avg_candidates": 23.87,
+  "has_groups": true
+}

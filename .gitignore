@@ -1,0 +1,42 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.test_tmp/
+.coverage
+htmlcov/
+
+# ---- 体积大的可再生产物 ----
+# 训练数据：JSONL 几十到几百 MB，npz 更大，都能由 training.collect_data + training.export_dataset 重新生成
+training/data/*.jsonl
+training/data/*.npz
+training/data/_invalid_pre_fix/
+training/data/*.manifest.json
+
+# 模型 checkpoint：训练脚本随时能重跑
+models/*.pt
+
+# 对局日志：由 auto_game / main.py play / 界面自动生成
+replay/*.jsonl
+replay/_test_runs/
+
+# ---- 本机的坑目录（ASCI 无法删除的空目录）----
+.tmp_eval_*/
+pytest-cache-files-*/
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# 2026-11-02 第一版数据（v1 格式，已作废）
+training/training_data_*.jsonl
+
+# 自我对弈生成的数据（体积大，可重新生成，禁止入库）
+training/data_selfplay/*.jsonl
+training/data_selfplay/*.npz
+training/data_selfplay/*.manifest.json
+evaluation/*.csv

@@ -1,0 +1,15 @@
+{
+  "samples": 1590,
+  "teacher_rank1": 458,
+  "rate": 0.2880503144654088,
+  "ci": [
+    0.2663225977794884,
+    0.3107997461221892
+  ],
+  "random_baseline": 0.2,
+  "avg_margin": 0.01899825160127011,
+  "value_checkpoint": "C:\\Users\\qq165\\Documents\\deepseek-harness\\default-workspace\\GuanDan-AI-Lab\\models\\value_v3.pt",
+  "value_auc": 0.6996661889521706,
+  "policy_rank1_rate": null,
+  "policy_samples": 0
+}
