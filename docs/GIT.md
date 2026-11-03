@@ -18,8 +18,8 @@
 ```
 GuanDan-AI-Lab/
 ├── .git/
-├── main      ← 完整开发历史（含 830MB 数据文件的历史，**只留在本地**）
-└── release   ← 干净快照（1 条提交、196 个对象、3.46MB，**用于推远程**）
+├── main          ← 工作分支（干净历史，跟踪 origin/main，**日常就在这里提交和推送**）
+└── main-archive  ← 旧开发档案（含 830MB 数据文件历史，**只留本地，不要推**）
 ```
 
 为什么分两个分支：
@@ -50,11 +50,8 @@ GuanDan-AI-Lab/
 $git = 'D:\software\Git\cmd\git.exe'
 cd C:\Users\qq165\Documents\deepseek-harness\default-workspace\GuanDan-AI-Lab
 
-# 远程（已配置好，换机器时才需要重配）
-git remote add origin https://github.com/gyk0627/Guandan-AI-Lab.git
-
-# 把本地的 release 分支推成远程的 main
-git push -u origin release:main
+# 远程已配置好；分支名已统一为 main，直接推即可
+git push
 ```
 
 之后日常提交：
@@ -65,7 +62,7 @@ git push -u origin release:main
 & $git push
 ```
 
-> 注意：当前分支是 `release`。**不要推 `main`**——它带着 830MB 的历史。
+> 注意：当前工作分支是 `main`（干净历史）。**不要推 `main-archive`**——它带着 830MB 的历史。
 
 ---
 
@@ -107,8 +104,8 @@ python -m training.export_dataset training/data_selfplay/run1.jsonl
 
 ```powershell
 # 确认有备份后再删（备份已在工作区外：_gandan_old_history.bundle）
-& $git branch -D main
-& $git gc --prune=now
+git branch -D main-archive
+git gc --prune=now
 ```
 
 删掉后本地就只剩 `release` 分支（3.46MB），历史会丢失但代码完整。
@@ -120,7 +117,7 @@ python -m training.export_dataset training/data_selfplay/run1.jsonl
 
 | 项 | 值 |
 |---|---|
-| 用于推送的分支 | `release` |
+| 用于推送的分支 | `main`（跟踪 origin/main） |
 | 该分支体积 | 196 对象 / 3.46 MB（未压缩） |
 | 被跟踪文件 | 180 个（代码、文档、PDF、小 meta） |
 | 被忽略 | `training/data*`、`training/data_selfplay/*`、`models/*.pt`、`replay/*.jsonl`、`.venv`、`.test_tmp` |
