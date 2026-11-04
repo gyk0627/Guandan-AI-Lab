@@ -23,8 +23,16 @@ def make_fake_module(busy_ports):
     """create_server：前几个端口抛 OSError（模拟被占用），之后成功。"""
     calls = []
 
-    def create_server(port, level, use_neural, log_dir):
-        calls.append({"port": port, "level": level, "use_neural": use_neural, "log_dir": log_dir})
+    def create_server(port, level, use_neural, log_dir, on_log_ready=None):
+        calls.append(
+            {
+                "port": port,
+                "level": level,
+                "use_neural": use_neural,
+                "log_dir": log_dir,
+                "on_log_ready": on_log_ready,
+            }
+        )
         if port in busy_ports:
             raise OSError(f"端口 {port} 被占用")
         return FakeServer(port)

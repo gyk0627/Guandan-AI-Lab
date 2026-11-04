@@ -57,7 +57,9 @@
 
 ### 方式一：下载即玩（Windows，无需 Python）
 
-到 [Releases](https://github.com/gyk0627/Guandan-AI-Lab/releases) 下载 `GuandanAI-win64.zip`，解压后双击 `GuandanAI.exe`，浏览器会自动打开对局界面。包里是启发式 AI。
+到 [Releases](https://github.com/gyk0627/Guandan-AI-Lab/releases) 下载 `GuandanAI-win64.zip`，解压后双击 `GuandanAI.exe`：会弹出一个独立的游戏窗口（没有地址栏和标签页），关掉窗口程序就退出。万一窗口没弹出来，黑色窗口里会打印地址，复制到浏览器也能玩。包里是启发式 AI。
+
+对局记录默认只存本地 `replay/`。如果想让别人的对局自动回传，把包里的 `upload.json.example` 改名为 `upload.json` 并填上收集地址，接收端用 `python -m tools.collect_server`（见 [docs/USAGE.md](docs/USAGE.md#收集别人的对局记录)）。
 
 ### 方式二：从源码运行
 
@@ -87,7 +89,7 @@ python -m venv .venv
 
 | 指标 | 数值 | 条件 |
 |---|---|---|
-| 测试用例 | **404 通过** | `pytest tests -q`，约 30 秒 |
+| 测试用例 | **423 通过** | `pytest tests -q`，约 30 秒 |
 | 行为克隆验证一致率 | **0.7500** | 5000 局 / 478,895 决策，40 轮，batch 64 |
 | 神经网络 vs 启发式老师 | **53.00%** | 400 局成对换座，`--level 2` |
 | 神经网络 vs 随机 | **93.00%** | 400 局，95% CI 90.07–95.11 |

@@ -7,6 +7,30 @@
 
 ---
 
+## 2026-11-04（21:35）— 工具：exe 自带窗口 + 对局记录自动回传
+
+**背景**：双击 exe 会去调浏览器，用户机器上还遇到 Edge「现有实例以提升权限运行」的冲突弹窗；
+另外想把别人机器上打的对局收回来做人类数据，但没有回传通道。
+
+**做法**：
+1. `interface/window.py`：找 Edge，用 `--app=<url> --user-data-dir=<独立目录>` 开一个无地址栏的应用窗口；
+   找不到 Edge 就退回默认浏览器；窗口进程一闪而过（被现有 Edge 接管/权限冲突）时也自动退回浏览器。
+2. `interface/uploader.py`：后台线程上传 `replay/human_*.jsonl`。配置 `upload.json`（url/token），
+   按 sha256 去重、失败指数退避（20s→300s）、状态写 `upload_state.json`，重启后自动补传；
+   补传时跳过只有一两行的空壳日志；上传失败绝不打断游戏。
+3. `tools/collect_server.py`：接收端（纯标准库）。`POST /upload` 校验 token / 后缀 / base64 / 大小 / sha256，
+   按 `<sha16>_<原名>` 落盘并追加 `index.jsonl`，重复上传返回 `duplicate`；`GET /api/stats` 看统计。
+4. `interface/app.py` 加 `--browser`、`--no-upload`、`--home`；`web_server.create_server` 增加 `on_log_ready`
+   回调（每局结束、以及打到一半换局时触发），由启动器接到上传队列。
+5. 发布包说明更新（窗口行为、上传开关），包里多一个 `upload.json.example`。
+
+**实测**：源码端到端（起收集端 → app.py → 真打一局）收到 89 行 / 54.3 KB，队列清空；
+打包版 exe 同样验证通过（含“上次没传完”的补传：同一批 2 个文件都传上去了）。
+窗口模式在沙箱里只能确认进程被拉起（Edge 在本机的提权会话里会立刻退出），
+所以额外加了“窗口没起来就自动退回浏览器”的兜底，实际观感需要用户双击确认。
+
+**测试**：404 → **423 通过**（新增 uploader 8 条、collect_server 7 条、window 3 条、web 回调 1 条）。
+
 ## 2026-11-04（21:20）— 文档：仓库转为公开项目，README 重写为正式门面
 
 **背景**：仓库已公开（`github.com/gyk0627/Guandan-AI-Lab`），原 README 是内部工作文档（1023 行，

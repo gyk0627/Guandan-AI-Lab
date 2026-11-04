@@ -70,8 +70,35 @@ python -m venv .venv
 & .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe
 ```
 
-产物：`dist\GuandanAI\`（程序文件夹）、`dist\GuandanAI-win64.zip`（发布包，约 8.9 MB）。
+产物：`dist\GuandanAI\`（程序文件夹）、`dist\GuandanAI-win64.zip`（发布包，约 9.1 MB）。
 exe 内是启发式 AI；神经网络策略需要 PyTorch，不打包。
+
+打包版启动后会用 Edge 的「应用模式」开一个没有地址栏的独立窗口；找不到 Edge
+就退回默认浏览器。参数：`--level`、`--port`、`--browser`（强制浏览器）、`--no-upload`。
+
+### 收集别人的对局记录
+
+exe 默认只把记录存在本地 `replay/`。想让别人打完自动传回来，分两步：
+
+1. 找一台机器起接收端（不需要公网域名，局域网也行）：
+
+   ```powershell
+   & .\.venv\Scripts\python.exe -X utf8 -m tools.collect_server --dir collected --port 8790 --token 换成一串口令
+   ```
+
+   收到的文件按 `<sha16>_<原名>.jsonl` 存盘，并追加 `index.jsonl`；重复上传会被挡掉，
+   `GET /api/stats` 能看已收多少局。
+
+2. 在 exe 所在文件夹放 `upload.json`（发布包里带 `upload.json.example`）：
+
+   ```json
+   { "url": "http://接收端地址:8790/upload", "token": "同一串口令" }
+   ```
+
+   exe 每局结束自动 POST；断网就先存本地，下次启动按 sha256 去重补传。
+   状态在 `upload_state.json`；没有 `upload.json` 就完全离线。
+
+公网部署时记得设 `--token`，并放到 Nginx / HTTPS 后面。
 
 ## 5. 数据管线
 

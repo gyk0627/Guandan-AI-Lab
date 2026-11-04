@@ -26,8 +26,9 @@ README = """掼蛋人机对战 —— 使用说明
 一、怎么开始
   1. 把整个 GuandanAI 文件夹解压到任意位置（不要只复制 exe，它旁边的文件也要）
   2. 双击 GuandanAI.exe
-  3. 浏览器会自动打开游戏页面；没自动打开就把窗口里显示的地址复制到浏览器
-  4. 关掉黑色命令窗口，游戏就结束了
+  3. 会弹出一个独立的游戏窗口（没有地址栏和标签页，和普通软件一样）
+     万一窗口没弹出来，把黑色窗口里显示的地址复制到浏览器也能玩
+  4. 关掉游戏窗口，程序就退出了
 
 二、你和谁打
   你 = 0 号位（A 队），队友 = 2 号位（A 队）
@@ -49,10 +50,24 @@ README = """掼蛋人机对战 —— 使用说明
 五、对局记录
   每局都会自动存一份到 replay 文件夹，可以用来看回放、复盘。
 
-六、常见问题
+六、把对局记录传回来（可选）
+  默认只在你自己电脑上存着，不会上传。
+  想让它自动传回：把 upload.json.example 改名成 upload.json，
+  把里面的地址和口令换成收集方给的，再启动程序就行。
+  传不上去也没关系，会先存在本地，下次启动接着传。
+
+七、常见问题
   - 提示「Windows 已保护你的电脑」：点「更多信息」→「仍要运行」
   - 端口被占用：程序会自动换一个端口，看窗口里打印的地址
   - 想换打几：现在默认打 2；需要别的话用命令行 GuandanAI.exe --level 7
+  - 想只用浏览器打开：GuandanAI.exe --browser
+  - 不想上传：GuandanAI.exe --no-upload
+"""
+
+UPLOAD_EXAMPLE = """{
+  "url": "http://收集方的地址:8790/upload",
+  "token": "收集方给你的口令"
+}
 """
 
 
@@ -66,6 +81,7 @@ def main(argv=None) -> int:
 
     readme = folder / "使用说明.txt"
     readme.write_text(README, encoding="utf-8-sig")
+    (folder / "upload.json.example").write_text(UPLOAD_EXAMPLE, encoding="utf-8")
 
     zip_path = DIST / f"{args.name}-win64.zip"
     if zip_path.exists():

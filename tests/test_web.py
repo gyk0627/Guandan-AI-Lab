@@ -9,6 +9,7 @@ import threading
 import urllib.error
 import urllib.request
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
@@ -401,3 +402,25 @@ def test_new_game_does_not_keep_an_empty_log(log_dir):
     assert len(after) == 1, "空壳日志应该被删掉，只留下新开的那局"
     assert after[0].name not in {path.name for path in before}
 
+
+def test_log_callback_fires_when_game_ends(log_dir):
+    """每局打完通知一次（上传器就靠这个把记录排进队列）。"""
+    seen = []
+
+    with running_server(seed=41, level="2", log_dir=log_dir, on_log_ready=seen.append) as base:
+        state = post(base + "/api/new", {"level": "2"})[1]
+        steps = 0
+        while not state["game_over"]:
+            steps += 1
+            assert steps < 400
+            _, hint = get_json(base + "/api/legal")
+            moves = hint.get("plays") or []
+            if moves:
+                _, state = post(base + "/api/play", {"cards": moves[0]})
+            else:
+                _, state = post(base + "/api/pass", {})
+
+    assert len(seen) == 1
+    path = Path(seen[0])
+    assert path.exists()
+    assert sum(1 for _ in path.open(encoding="utf-8")) > 10

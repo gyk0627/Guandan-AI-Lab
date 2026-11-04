@@ -60,6 +60,7 @@ class GameSession:
         model_path=None,
         use_neural=True,
         log_dir=None,
+        on_log_ready=None,
     ):
         self.level = level
         # 没指定种子就随机生成一个：写进日志文件名，这一局以后可以精确重放
@@ -93,6 +94,8 @@ class GameSession:
         self.log_path = str(self.logger.file_path)
         # 本局到底动过几手：用来判断开新局时这局是不是空壳（空壳不留日志文件）
         self.moves = 0
+        # 一局打完时回调（app.py 用它把记录传回去）；传出错也不影响游戏
+        self.on_log_ready = on_log_ready
 
         self.advance_ai()
 
@@ -128,6 +131,17 @@ class GameSession:
 
         if self.game.game_over:
             self.logger.finish(self.game)
+            self._notify_log_ready()
+
+    def _notify_log_ready(self):
+        """一局结束，通知外部「这条记录可以拿走用/传走了」。"""
+        callback = self.on_log_ready
+        if callback is None:
+            return
+        try:
+            callback(self.log_path)
+        except Exception:  # noqa: BLE001 - 上传失败、磁盘只读都不该影响对局
+            pass
 
     def ai_action(self, player, legal):
         if self.policy is not None:
@@ -298,6 +312,7 @@ class GameHTTPServer(ThreadingHTTPServer):
 class Handler(BaseHTTPRequestHandler):
     session: GameSession = None
     log_dir = None
+    on_log_ready = None
     lock = threading.Lock()
 
     server_version = "GuanDanGUI/1.0"
@@ -384,6 +399,12 @@ class Handler(BaseHTTPRequestHandler):
                         Path(old_path).unlink()
                     except OSError:
                         pass
+                elif old_path and getattr(old, "on_log_ready", None):
+                    # 打到一半点「新的一局」：这局的记录也算数
+                    try:
+                        old.on_log_ready(old_path)
+                    except Exception:  # noqa: BLE001
+                        pass
 
                 # 必须写到「类」上：http.server 每个请求都新建一个 handler 实例，
                 # 写 self.session 只影响当次请求，后续请求读到的还是旧对局。
@@ -393,6 +414,7 @@ class Handler(BaseHTTPRequestHandler):
                     model_path=model,
                     use_neural=payload.get("use_neural", True),
                     log_dir=self.log_dir,
+                    on_log_ready=self.on_log_ready,
                 )
 
                 self._send(200, self.session.snapshot())
@@ -422,6 +444,7 @@ def create_server(
     use_neural=True,
     model_path=None,
     log_dir=None,
+    on_log_ready=None,
 ):
     handler = type(
         "BoundHandler",
@@ -433,8 +456,10 @@ def create_server(
                 model_path=model_path,
                 use_neural=use_neural,
                 log_dir=log_dir,
+                on_log_ready=on_log_ready,
             ),
             "log_dir": log_dir,
+            "on_log_ready": on_log_ready,
         },
     )
 
