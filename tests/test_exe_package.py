@@ -84,6 +84,18 @@ def test_release_readme_mentions_how_to_start():
         assert keyword in text
 
 
+def test_release_readme_mentions_the_native_window_and_webview2():
+    text = package_exe.README
+    assert "窗口" in text
+    assert "WebView2" in text or "Edge" in text
+
+
+def test_window_host_files_are_part_of_the_build():
+    """外壳和三个 DLL 必须打进包，否则就退化成 Edge 应用模式（管理员权限会白屏）。"""
+    for filename in build_exe.HOST_FILES:
+        assert (build_exe.HOST_DIR / filename).exists(), f"缺少 {filename}"
+
+
 def test_drop_admin_command_uses_restricted_token():
     """管理员启动时要能把自己降权重启，否则 Edge 会拒绝渲染（白窗）。"""
     command = app_module.drop_admin_command(["--level", "7", "--home", r"C:\有 空格\dir"])

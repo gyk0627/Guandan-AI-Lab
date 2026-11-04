@@ -70,11 +70,24 @@ python -m venv .venv
 & .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe
 ```
 
-产物：`dist\GuandanAI\`（程序文件夹）、`dist\GuandanAI-win64.zip`（发布包，约 9.1 MB）。
+产物：`dist\GuandanAI\`（程序文件夹）、`dist\GuandanAI-win64.zip`（发布包，约 9.3 MB）。
 exe 内是启发式 AI；神经网络策略需要 PyTorch，不打包。
 
-打包版启动后会用 Edge 的「应用模式」开一个没有地址栏的独立窗口；找不到 Edge
-就退回默认浏览器。参数：`--level`、`--port`、`--browser`（强制浏览器）、`--no-upload`。
+打包版启动后会打开一个**内嵌 WebView2 的原生窗口**（`interface\window_host\GuandanWindow.exe`，
+一个几十 KB 的 C# 外壳 + 三个 DLL，一起打进包里）。它不经过浏览器的启动策略，
+所以即便 Windows 账户是管理员权限也不会白屏；关掉窗口进程就退出。
+缺 WebView2 运行时时自动退回 Edge 应用模式，再不行退回默认浏览器。
+参数：`--level`、`--port`、`--browser`（强制浏览器）、`--no-upload`。
+
+改窗口外壳（一般不需要）：
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m tools.build_window_host   # 从 NuGet 取 SDK 并重新编译
+& .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe          # 重新打发布包
+```
+
+`GuandanWindow.exe` 支持第三个参数传调试端口（`--remote-debugging-port`），
+自动化测试用它拿到窗口里的页面；正常启动时传 `0` 表示不开。
 
 ### 收集别人的对局记录
 

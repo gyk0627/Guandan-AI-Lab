@@ -313,6 +313,7 @@ class Handler(BaseHTTPRequestHandler):
     session: GameSession = None
     log_dir = None
     on_log_ready = None
+    page_served = False  # 窗口是不是真的把页面要走了（用来判断窗口有没有白屏）
     lock = threading.Lock()
 
     server_version = "GuanDanGUI/1.0"
@@ -352,6 +353,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(500, {"error": "index.html 缺失"}, "application/json")
                 return
 
+            type(self).page_served = True
             self._send(200, html, "text/html; charset=utf-8")
             return
 

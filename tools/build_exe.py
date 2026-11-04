@@ -19,6 +19,16 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 ENTRY = REPO_ROOT / "interface" / "app.py"
 DATA_FILE = REPO_ROOT / "interface" / "index.html"
 ICON_FILE = REPO_ROOT / "interface" / "guandan.ico"
+HOST_DIR = REPO_ROOT / "interface" / "window_host"
+
+# 内嵌窗口外壳：一个 C# 小程序 + WebView2 的托管 DLL + 加载器。
+# 少了它们就只能退回「Edge 应用模式」，在管理员权限的机器上会白屏。
+HOST_FILES = (
+    "GuandanWindow.exe",
+    "Microsoft.Web.WebView2.Core.dll",
+    "Microsoft.Web.WebView2.WinForms.dll",
+    "WebView2Loader.dll",
+)
 
 # 这些包很大，而且打包版用不到（启发式策略是纯 Python）。
 EXCLUDES = [
@@ -77,6 +87,11 @@ def build(name: str, clean: bool, one_file: bool, keep_work: bool) -> Path:
         command.append("--clean")
     if ICON_FILE.exists():
         command.extend(["--icon", str(ICON_FILE)])
+    for filename in HOST_FILES:
+        path = HOST_DIR / filename
+        if not path.exists():
+            raise SystemExit(f"缺少窗口外壳文件：{path}（先跑 python -m tools.build_window_host）")
+        command.extend(["--add-binary", f"{path}{separator}interface/window_host"])
     for module in EXCLUDES:
         command.extend(["--exclude-module", module])
     command.append(str(ENTRY))

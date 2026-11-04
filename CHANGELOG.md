@@ -7,6 +7,35 @@
 
 ---
 
+## 2026-11-04（22:20）— 工具/界面：exe 改用内嵌 WebView2 窗口，彻底解决白窗
+
+**问题**：前两版 exe 用「Edge 的 `--app` 应用模式」开窗口。在关闭 UAC / 以管理员权限启动的机器上，
+Edge 拒绝在提权进程里渲染，用户看到一片灰色空窗，关掉后还会弹「Edge 未响应，是否用普通权限重启」。
+先加过「降权重启（`runas /trustlevel:0x20000`）+ 等服务就绪再开窗」，仍然无效。
+
+**做法**：不借外部浏览器，改成**进程内嵌 WebView2**。
+- `interface/window_host/GuandanWindow.cs`：C# WinForms + WebView2 外壳，1280×900、标题「掼蛋人机对战」，
+  关掉窗口即退出；初始化失败弹提示后退出，交回启动器兜底。
+- `tools/build_window_host.py`：从 NuGet 取 `Microsoft.Web.WebView2` 1.0.4314.35，用系统 `csc.exe` 编译，
+  产物 `GuandanWindow.exe` + 3 个 DLL 存进 `interface/window_host/`。
+- `interface/window.py`：优先用外壳，其次 Edge 应用模式，最后默认浏览器；`open_window` 改为返回 `(进程, 方式)`。
+- `interface/app.py`：等页面真的被请求过（`Handler.page_served`）才认为窗口成功；5 秒内退出且没请求过页面 → 自动退回浏览器。
+- `tools/build_exe.py`：把外壳与 DLL 用 `--add-binary` 打进包；缺文件时构建直接报错。
+- Windows 权限问题不再是问题：WebView2 是宿主进程内的控件，不理会浏览器的「管理员模式」限制。
+  因此 `interface/app.py` **不再**在检测到管理员权限时用 `runas` 降权重启（两个辅助函数和测试保留，
+  作为历史方案与备用手段）。
+
+**实测（本机）**
+- 源码方式：窗口标题「掼蛋人机对战」、6 个 `msedgewebview2` 子进程；用窗口调试端口连进去截图，
+  页面标题「掼蛋 · 人机对战」、正文 9,846 字符、含手牌与牌桌，不是白页。
+- 打包版：`GuandanAI.exe` 起窗成功、`replay/` 生成记录；关掉窗口后主进程 exit 0。
+- exe 冒烟（`--no-browser`）：24 步、86 行 / 53.4 KB、排名 `[3,2,0,1]`、通过。
+- 包体积：文件夹 21.4 MB、zip 9.3 MB（外壳与 DLL 约 +0.9 MB）。
+
+**测试**：444 → **450 通过**（窗口 3 条：外壳四件套、优先外壳、Edge 兜底；打包 2 条：说明含 WebView2、构建包含外壳）。
+
+---
+
 ## 2026-11-04（22:10）— 文档/工具：论文初稿 + 人类偏好标注页
 
 **新增 `docs/paper/`**

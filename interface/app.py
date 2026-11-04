@@ -142,11 +142,8 @@ def main(argv=None) -> int:
     parser.add_argument("--relaunched", action="store_true", help="内部用：已经降权重启过，别再重启")
     args = parser.parse_args(argv)
 
-    if not args.no_browser and not args.relaunched and is_elevated():
-        print("检测到以管理员权限运行：浏览器不接受管理员模式，正在改用普通权限重启……")
-        if relaunch_without_admin():
-            return 0
-        print("切换普通权限失败，继续以当前权限运行（窗口可能显示空白）。")
+    # 以前用「Edge 应用模式」时，管理员权限会导致白窗，所以先降权重启。
+    # 现在窗口是内嵌的 WebView2 控件，不受浏览器权限策略影响，不需要再重启。
 
     base = Path(args.home).resolve() if args.home else application_dir()
     log_dir = base / "replay"
@@ -186,18 +183,20 @@ def main(argv=None) -> int:
         else:
             from interface.window import open_window
 
-            window = open_window(url, base / "window-profile")
+            window, kind = open_window(url, base / "window-profile")
             if window is None:
-                print("没找到 Edge，改用默认浏览器打开。")
+                print("没有可用的窗口组件，改用默认浏览器打开。")
                 webbrowser.open(url)
+            elif kind == "host":
+                print("窗口已打开；关掉窗口就退出。")
             else:
                 print("窗口空白就按一下 F5 刷新。")
 
     try:
         if window is not None:
             window.wait()  # 窗口关掉就退出
-            if time.time() - started < 5:
-                # 进程一闪而过：多半是被别的 Edge 实例接管、或者权限冲突，窗口没起来
+            if time.time() - started < 5 and not web_server.Handler.page_served:
+                # 进程一闪而过、页面也没被请求过：窗口没起来（例如缺 WebView2 运行时）
                 print("窗口没能打开，改用默认浏览器。")
                 webbrowser.open(url)
                 serving.join()
