@@ -1,0 +1,197 @@
+# 使用手册（USAGE）
+
+本页是**可直接复制**的命令清单。规则本身见 [RULES.md](RULES.md)，实验编号与数字见 [EXPERIMENTS.md](EXPERIMENTS.md)。
+
+Windows 环境约定：
+
+- 一律用仓库自带的虚拟环境：`& .\.venv\Scripts\python.exe -X utf8 -m ...`，不要用 PATH 里的 `python`；
+- 中文输出乱码时先设 `$env:PYTHONIOENCODING='utf-8'`；
+- 所有命令都在仓库根目录（`GuanDan-AI-Lab\`）执行。
+
+---
+
+## 1. 环境
+
+| 依赖 | 版本 | 是否必需 |
+|---|---|---|
+| Python | 3.13 | 必需 |
+| numpy / pytest | 见 `requirements.txt` | 必需 |
+| torch（CUDA 版） | 2.11.0+cu128 | 训练与神经网络对战才需要 |
+
+```powershell
+python -m venv .venv
+& .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# 可选：CUDA 版 torch（Blackwell 架构需要 cu128 及以上）
+& .\.venv\Scripts\python.exe -m pip install --index-url https://download.pytorch.org/whl/cu128 torch
+```
+
+不装 torch 时，依赖 torch 的测试会自动跳过，规则引擎、数据管线、对战界面照常可用。
+
+## 2. 跑测试
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m pytest tests -q
+```
+
+约 30 秒、404 个用例。`pytest.ini` 禁用了缓存，所以 `--cache-clear` 这类参数会被拒绝。
+
+## 3. 打一局
+
+```powershell
+# 启发式 AI 自我对弈，打印每一步
+& .\.venv\Scripts\python.exe -X utf8 -m main play --seed 42
+
+# 固定种子性能基准
+& .\.venv\Scripts\python.exe -X utf8 -m main bench --games 20
+```
+
+## 4. 网页人机对战
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m interface.web_server --level 2
+```
+
+浏览器打开 `http://127.0.0.1:8765/`，你坐 0 号位（A 队）。
+
+| 参数 | 说明 |
+|---|---|
+| `--level 2` | 本局打几（2 / 7 / A …） |
+| `--port 8899` | 换端口 |
+| `--no-neural` | 强制用启发式（不加载模型） |
+| `--model models\xxx.pt` | 指定模型；省略时取 `models/` 下最新 |
+| `--no-browser` | 不自动开浏览器 |
+
+也可以双击 `interface\start_gui.bat`。每局都会写到 `replay/human_<时间戳>_<种子>.jsonl`。
+
+### 免安装 exe
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe
+```
+
+产物：`dist\GuandanAI\`（程序文件夹）、`dist\GuandanAI-win64.zip`（发布包，约 8.9 MB）。
+exe 内是启发式 AI；神经网络策略需要 PyTorch，不打包。
+
+## 5. 数据管线
+
+采集 → 结构校验 → 导出（重放校验）→ 合并。
+
+```powershell
+# 采集 300 局（约 1 分钟）
+& .\.venv\Scripts\python.exe -X utf8 -m training.collect_data --games 300 --seed-start 1000
+
+# 结构校验（不跑引擎，秒级）
+& .\.venv\Scripts\python.exe -X utf8 -m training.check_dataset
+
+# 单进程导出（会重放整局并逐条校验）
+& .\.venv\Scripts\python.exe -X utf8 -m training.export_dataset
+
+# 多进程并行导出（5000 局实测 6.2×）
+& .\.venv\Scripts\python.exe -X utf8 -m tools.parallel_export --workers 8
+
+# 合并多份 npz
+& .\.venv\Scripts\python.exe -X utf8 -m training.merge_datasets --out training\data\merged.npz a.npz b.npz
+```
+
+采集参数：`--level-mode cycle|fixed|none`（级牌轮转 / 固定 / 无）、`--policy heuristic|random`、`--out`。
+
+> 导出会逐条重算候选与标签，一旦与采集记录不一致就报错退出——这是刻意的，防止数据静默漂移。
+
+## 6. 训练
+
+### 行为克隆
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m training.train_bc `
+    --data training\data\games_20261103_v3.npz `
+    --epochs 40 --batch-size 64 --min-candidates 2
+```
+
+| 参数 | 说明 |
+|---|---|
+| `--loss ce\|group\|mixed` | 默认 `ce`（实测最好）；另两种是实验中的负结果 |
+| `--min-candidates 2` | 剔除「只有一个候选」的样本（恒对，会抬高一致率） |
+| `--prefetch 2` | 后台组批线程，实测约 +10% 吞吐 |
+| `--monitor 路径` | 写进度快照，配合进度网页 |
+| `--out 路径` | 模型输出；省略写到 `models/` |
+
+### 训练进度网页
+
+```powershell
+# 边训边看（自动开浏览器）
+& .\.venv\Scripts\python.exe -X utf8 -m tools.train_with_monitor --epochs 40
+
+# 训练在别的窗口跑，只看进度
+& .\.venv\Scripts\python.exe -X utf8 -m tools.train_monitor --open
+```
+
+也可以双击 `run_train_gui.bat`。原理：训练进程写 JSON 快照，网页每 0.8 秒读一次。
+
+## 7. 评估
+
+```powershell
+# 神经网络 vs 随机（400 局，务必显式给 --level）
+& .\.venv\Scripts\python.exe -X utf8 -m tools.eval_policies --a neural --b random `
+    --games 200 --level 2 --checkpoint models\bc_games_20261103_v3.pt
+
+# 神经网络 vs 启发式
+& .\.venv\Scripts\python.exe -X utf8 -m tools.eval_policies --a neural --b heuristic `
+    --games 200 --level 2 --checkpoint models\bc_games_20261103_v3.pt
+```
+
+`--games N` 是**组数**，每组两局（同种子换座位），所以 200 组 = 400 局。输出含 Wilson 置信区间。
+
+## 8. 性能基准
+
+```powershell
+# 三档预设
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark run --preset quick      # 约 20 秒
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark run --preset standard   # 约 3 分钟
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark run --preset full       # 约 10 分钟
+
+# 与历史基线对比（省略第二个文件时用仓库内 v1 基线）
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark compare evaluation\bench_quick_20261104_200736.json
+
+# 列出预设、子命令与报告目录
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark list
+```
+
+**对比口径**：比值 ≥1.10 记「更快」、≤0.90 记「变慢」，其余记「持平」；纯测量耗时（`module_seconds` 等）不参与比较。
+换机器请整份重跑，不要跨机器比绝对值。
+
+委托子命令（延迟加载，参数原样透传）：
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark scaling --help      # CPU 并行扩展性
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark roofline --help     # 算力/带宽 roofline
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark dataloading --help  # 组批并行
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark batch --help        # batch 大小消融
+```
+
+## 9. 常见报错
+
+| 现象 | 原因 | 处理 |
+|---|---|---|
+| `ModuleNotFoundError: No module named 'numpy'` | 用了 PATH 里的 python | 用 `& .\.venv\Scripts\python.exe ...` |
+| `ModuleNotFoundError: No module named 'game_engine'` | 不在仓库根目录 | 先 `cd` 到 `GuanDan-AI-Lab` |
+| 中文输出乱码 | 控制台编码 | `$env:PYTHONIOENCODING='utf-8'` |
+| 源码中文变成 `娌℃湁` 这类乱码 | 被 PowerShell 的 `Get-Content\|Set-Content` 按 ANSI 改写 | 用编辑器重写该文件，不要用 shell 改源码 |
+| `pytest: error: unrecognized arguments: --cache-clear` | 项目刻意禁用缓存 | 去掉参数 |
+| `ModuleNotFoundError: No module named 'torch'` | 没装 torch | 按第 1 节装，或只跑不依赖 torch 的部分 |
+| `torch.cuda.is_available()` 为 `False` | 装成 CPU 版 | 用 cu128 索引重装 |
+| CUDA out of memory | 候选宽度大 + batch 大 | 降 `--batch-size`，或按候选数分桶 |
+| `FileNotFoundError: ... 请先采集` | 还没有数据 | 先跑 `training.collect_data` |
+| 评估结果明显偏低 | 用了 `--level none`（训练分布外）或错了 checkpoint | 加 `--level 2` 并显式指定模型 |
+| `RuntimeError: 种子 xxx 的对局超过最大行动次数` | 回合逻辑或策略死循环 | 用 `main play --seed xxx --no-log` 复现，这是真 bug |
+
+## 10. 数据文件
+
+| 路径 | 内容 |
+|---|---|
+| `training/data/games_*.jsonl` | 采集的原始对局（每行一条决策） |
+| `training/data/*.npz` | 导出后的训练集（状态、候选、标签） |
+| `replay/*.jsonl` | 对局日志（人机对战自动写入） |
+| `evaluation/bench_*.json` | 基准报告（v2 格式） |
+
+字段定义见 [DATA_FORMAT.md](DATA_FORMAT.md)。
