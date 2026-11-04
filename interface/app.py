@@ -158,7 +158,7 @@ def main(argv=None) -> int:
     callback = uploader.enqueue if uploader else None
 
     server, port = pick_port(
-        web_server, args.port, args.level, log_dir, on_log_ready=callback
+        web_server, args.port, args.level, log_dir, on_log_ready=callback, home=base
     )
     url = f"http://127.0.0.1:{port}/"
 

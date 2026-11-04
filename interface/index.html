@@ -148,17 +148,36 @@
   .hint-btn { font-size: 12px; padding: 4px 9px; }
 
   .overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.62);
+    position: fixed; inset: 0; background: rgba(0,0,0,.72);
     display: none; align-items: center; justify-content: center; z-index: 10;
   }
   .overlay.show { display: flex; }
   .panel {
-    background: #123b28; border: 1px solid var(--line); border-radius: 14px;
-    padding: 22px 26px; min-width: 280px; text-align: center;
+    background: #123b28; border: 1px solid var(--line); border-radius: 16px;
+    padding: 26px 30px 22px; min-width: 280px; text-align: center;
   }
   .panel h2 { margin: 0 0 10px; font-size: 18px; }
   .panel ol { text-align: left; margin: 12px 0 18px; padding-left: 22px; font-size: 14px; line-height: 1.9; }
   .panel .win { color: var(--gold); font-weight: 700; }
+
+  /* 打完一局的全屏弹窗：把「发送给作者」做成唯一的大按钮 */
+  .panel.finish {
+    width: min(560px, 92vw); min-width: 0; padding: 30px 34px 24px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.5);
+  }
+  .panel.finish h2 { font-size: 26px; letter-spacing: 1px; }
+  .panel.finish #resultText { font-size: 15px; margin-bottom: 4px; }
+  .panel.finish ol { font-size: 15px; line-height: 2; margin: 10px auto 4px; display: inline-block; }
+  .send-box {
+    margin-top: 18px; padding: 16px 18px 14px; border-radius: 12px;
+    border: 1px solid rgba(232,196,106,.35); background: rgba(232,196,106,.06);
+  }
+  .send-box .ask { font-size: 15px; font-weight: 700; color: var(--gold); }
+  .send-box .why { font-size: 12.5px; line-height: 1.8; opacity: .82; margin: 6px 0 12px; }
+  #sendOverlayBtn { width: 100%; font-size: 17px; padding: 14px 18px; border-radius: 10px; }
+  .send-status { font-size: 13px; color: var(--gold); min-height: 20px; margin-top: 10px; word-break: break-all; }
+  .send-status.err { color: #ff9f9f; }
+  .panel.finish .actions { margin-top: 18px; display: flex; gap: 10px; justify-content: center; }
 </style>
 </head>
 <body>
@@ -212,11 +231,24 @@
 </main>
 
 <div class="overlay" id="overlay">
-  <div class="panel">
+  <div class="panel finish">
     <h2>对局结束</h2>
     <div id="resultText"></div>
     <ol id="rankingList"></ol>
-    <button class="primary" id="againBtn">再来一局</button>
+
+    <div class="send-box" id="sendBox">
+      <div class="ask">把这一局的记录发给作者</div>
+      <div class="why">
+        点一下就发送，帮我们把这副 AI 练得更强。<br>
+        只发这一局的出牌记录，没有昵称、没有账号、不收集任何个人信息。
+      </div>
+      <button class="primary" id="sendOverlayBtn">发送这一局给作者</button>
+      <div class="send-status" id="sendStatus"></div>
+    </div>
+
+    <div class="actions">
+      <button id="againBtn">再来一局</button>
+    </div>
   </div>
 </div>
 
@@ -426,7 +458,65 @@ function showResult() {
     : `<div>${TEAM[ranking[0]]} 队赢了这一局</div>`;
   document.getElementById("rankingList").innerHTML =
     names.map((n, i) => `<li>第${i + 1}名：${n}</li>`).join("");
+
+  if (sentThisGame) {
+    const button = document.getElementById("sendOverlayBtn");
+    button.textContent = "✓ 已发送，谢谢！";
+    button.disabled = true;
+  } else {
+    resetSendBox();
+  }
   document.getElementById("overlay").classList.add("show");
+}
+
+// 每局结束时的「发送」弹窗状态：换一局要复位，避免上一局的「已发送」串戏
+let sentThisGame = false;
+
+function resetSendBox() {
+  const button = document.getElementById("sendOverlayBtn");
+  const line = document.getElementById("sendStatus");
+  button.disabled = false;
+  button.textContent = "发送这一局给作者";
+  line.className = "send-status";
+  line.textContent = "";
+}
+
+/**
+ * 把这一局发给作者。成功后把按钮换成「已发送」，失败给出可复制的路径。
+ * 返回 true/false 表示是否真的发出去了。
+ */
+async function sendRecord(button, line) {
+  button.disabled = true;
+  const original = button.textContent;
+  button.textContent = "正在发送……";
+  line.className = "send-status";
+  line.textContent = "";
+  try {
+    const result = await api("/api/send", {});
+    if (result.sent) {
+      sentThisGame = true;
+      button.textContent = "✓ 已发送，谢谢！";
+      button.disabled = true;
+      line.textContent = `已发到作者邮箱（${result.to}）`;
+      return true;
+    }
+    button.textContent = original;
+    button.disabled = false;
+    if (result.saved) {
+      line.className = "send-status";
+      line.textContent = `没发出去（${result.reason || "没有配置收件邮箱"}）。已存到：${result.saved}`;
+    } else {
+      line.className = "send-status err";
+      line.textContent = result.reason || result.error || "发送失败";
+    }
+    return false;
+  } catch (error) {
+    button.textContent = original;
+    button.disabled = false;
+    line.className = "send-status err";
+    line.textContent = `发送失败：${error}`;
+    return false;
+  }
 }
 
 async function api(path, body) {
@@ -486,12 +576,22 @@ document.getElementById("hintBtn").onclick = async () => {
 async function newGame() {
   document.getElementById("hints").innerHTML = "";
   document.getElementById("overlay").classList.remove("show");
+  sentThisGame = false;
+  resetSendBox();
   const level = document.getElementById("levelSelect").value;
   applyState(await api("/api/new", { level }));
 }
 
 document.getElementById("newBtn").onclick = newGame;
 document.getElementById("againBtn").onclick = newGame;
+
+// 打完一局的全屏弹窗：这里的大按钮是最主要的入口
+document.getElementById("sendOverlayBtn").onclick = () => {
+  const button = document.getElementById("sendOverlayBtn");
+  const line = document.getElementById("sendStatus");
+  if (sentThisGame) return;
+  return sendRecord(button, line);
+};
 
 document.getElementById("exportBtn").onclick = async () => {
   // 由服务端直接存到「下载」文件夹：窗口版不会弹下载框，回一句路径最直观
@@ -513,7 +613,7 @@ document.getElementById("exportBtn").onclick = async () => {
 };
 
 document.getElementById("sendBtn").onclick = async () => {
-  // 一键发给作者：配了邮箱就直接发，没配就打包存到「下载」，都会把结果说清楚
+  // 顶栏的小按钮：行为和大弹窗里的一致，成功后记下「这一局已发过」
   const button = document.getElementById("sendBtn");
   const statusEl = document.getElementById("status");
   button.disabled = true;
@@ -522,6 +622,7 @@ document.getElementById("sendBtn").onclick = async () => {
   try {
     const result = await api("/api/send", {});
     if (result.sent) {
+      sentThisGame = true;
       statusEl.className = "status";
       statusEl.textContent = `已发送到作者邮箱（${result.to}）。谢谢你！`;
     } else if (result.saved) {

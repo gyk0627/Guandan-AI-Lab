@@ -80,6 +80,8 @@ def test_index_page_is_served():
         assert "api/play" in html
         assert "导出对局" in html, "界面要有「导出对局」按钮，不会配网络的人也能把记录发回来"
         assert "发送给作者" in html, "界面要有「发送给作者」按钮，点一下就能把记录发到作者邮箱"
+        assert "发送这一局给作者" in html, "打完一局的全屏弹窗里要有醒目的大按钮"
+        assert "对局结束" in html
 
 
 def test_export_returns_the_latest_record():
