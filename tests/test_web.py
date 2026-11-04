@@ -85,6 +85,9 @@ def test_index_page_is_served():
         # 同点数的牌要叠着显示，不然 27 张铺开太占地方
         assert ".card.stack" in html
         assert 'classList.add("stack")' in html
+        # 打完直接发、发完自动开下一局：结束弹窗里不再放「再来一局」按钮
+        assert "不想发，直接开下一局" in html
+        assert "againBtn" not in html
 
 
 def test_export_returns_the_latest_record():
