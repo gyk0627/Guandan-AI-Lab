@@ -131,6 +131,7 @@ GuanDan-AI-Lab/
 | 测试组织方式 | [docs/TESTING.md](docs/TESTING.md) |
 | 术语对照 | [docs/GLOSSARY.md](docs/GLOSSARY.md) |
 | 硬件选型与租用方案 | [docs/HARDWARE.md](docs/HARDWARE.md)、[docs/RENT_PLAN.md](docs/RENT_PLAN.md) |
+| 论文初稿与数字来源 | [docs/paper/draft.md](docs/paper/draft.md)、[docs/paper/NUMBERS.md](docs/paper/NUMBERS.md) |
 | 改动历史 | [CHANGELOG.md](CHANGELOG.md) |
 
 ## 路线图
