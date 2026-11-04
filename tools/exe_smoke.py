@@ -115,11 +115,13 @@ def main(argv=None) -> int:
             new = [p for p in files if p.name not in before]
             if not new:
                 raise SystemExit(f"没找到本局的对局记录（目录 {replay_dir}）")
-            log = new[-1]
+            # 按修改时间取最新的：文件名的随机种子不保证字典序等于时间序，
+            # 而且同一秒内可能先后建过两个会话（一个空壳、一个真打）
+            log = max(new, key=lambda path: path.stat().st_mtime)
             lines = sum(1 for _ in log.open(encoding="utf-8"))
             print(f"对局记录：{log.name}，{lines} 行，{log.stat().st_size / 1024:.1f} KB")
             if lines < 10:
-                raise SystemExit("对局记录行数太少，可能没记全")
+                raise SystemExit(f"对局记录行数太少（{log.name}），可能没记全")
         print("通过")
         return 0
     finally:

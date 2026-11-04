@@ -377,3 +377,27 @@ def test_new_game_closes_previous_log(log_dir):
     # 旧的那一局必须被收尾；新开的那局还没打过牌，自然只有 game_start
     assert last_events.count("game_end") == 1
     assert "game_start" in last_events
+
+
+def test_new_game_does_not_keep_an_empty_log(log_dir):
+    """一手没打就点「新的一局」，不该在 replay/ 里留下空壳日志。
+
+    服务端启动时会先建一个默认会话（也就是先落一个日志文件），
+    用户一进来就点新局的话，这个文件只有 game_start/game_end 两行，
+    堆久了 replay/ 里全是这种 200 字节的垃圾。
+    """
+    with running_server(seed=31, level="2", log_dir=log_dir) as base:
+        # 只看状态、不出牌：默认会话一手都没动过
+        _, state = get_json(base + "/api/state")
+        assert state["history"] == []
+
+        before = list(log_dir.glob("human_*.jsonl"))
+        assert len(before) == 1
+
+        _, fresh = post(base + "/api/new", {"level": "2"})
+        after = list(log_dir.glob("human_*.jsonl"))
+
+    assert fresh["game_over"] is False
+    assert len(after) == 1, "空壳日志应该被删掉，只留下新开的那局"
+    assert after[0].name not in {path.name for path in before}
+

@@ -91,6 +91,8 @@ class GameSession:
             prefix="human",
         )
         self.log_path = str(self.logger.file_path)
+        # 本局到底动过几手：用来判断开新局时这局是不是空壳（空壳不留日志文件）
+        self.moves = 0
 
         self.advance_ai()
 
@@ -122,6 +124,7 @@ class GameSession:
             previous_player=previous_player,
             legal_count=len(legal),
         )
+        self.moves += 1
 
         if self.game.game_over:
             self.logger.finish(self.game)
@@ -368,11 +371,19 @@ class Handler(BaseHTTPRequestHandler):
                 seed = payload.get("seed")
                 model = payload.get("model")
 
-                # 旧的一局如果没打完，先收尾，避免日志文件悬着没关
+                # 旧的一局如果没打完，先收尾，避免日志文件悬着没关；
+                # 如果这局一手都没动过（比如刚开服务器就点「新的一局」），
+                # 顺手把空日志删掉，别在 replay/ 里越堆越多。
+                old = self.session
                 try:
-                    self.session.logger.finish(self.session.game)
+                    old_path = old.logger.finish(old.game)
                 except Exception:  # noqa: BLE001 - 收尾失败不该挡住开新局
-                    pass
+                    old_path = None
+                if old_path and not getattr(old, "moves", 0):
+                    try:
+                        Path(old_path).unlink()
+                    except OSError:
+                        pass
 
                 # 必须写到「类」上：http.server 每个请求都新建一个 handler 实例，
                 # 写 self.session 只影响当次请求，后续请求读到的还是旧对局。
