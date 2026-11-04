@@ -15,6 +15,8 @@
 
 import argparse
 import json
+import queue
+import threading
 import time
 from pathlib import Path
 
@@ -133,6 +135,50 @@ def policy_loss(scores, labels, groups, mask, mode="ce", group_weight=0.2):
     return exact_loss, member
 
 
+def _iter_prepared(batches, data, prefetch):
+    """按批产出 collate 好的 CPU 张量；prefetch > 0 时在后台线程里提前组批。
+
+    E18 实测：同步组批时等待数据约占每步 7%；放到后台线程（2 个）后训练吞吐 +9.9%。
+    这也是本项目的「DataLoader num_workers」等价物——我们没用 DataLoader，
+    组批是 `training.dataset.collate` 在主进程里做的。
+    """
+    if prefetch <= 0:
+        for batch in batches:
+            yield collate(batch, data)
+
+        return
+
+    queue_size = max(1, prefetch)
+    pending = queue.Queue(maxsize=queue_size)
+    finished = object()
+
+    def produce():
+        try:
+            for batch in batches:
+                pending.put(collate(batch, data))
+        except BaseException as error:  # 组批出错也要让主线程看到
+            pending.put(error)
+        finally:
+            pending.put(finished)
+
+    worker = threading.Thread(target=produce, name="bc-prefetch", daemon=True)
+    worker.start()
+
+    try:
+        while True:
+            item = pending.get()
+
+            if item is finished:
+                break
+
+            if isinstance(item, BaseException):
+                raise item
+
+            yield item
+    finally:
+        worker.join(timeout=1.0)
+
+
 def run_epoch(
     model,
     batches,
@@ -142,6 +188,8 @@ def run_epoch(
     value_weight=0.5,
     loss_mode="ce",
     group_weight=0.2,
+    prefetch=0,
+    on_batch=None,
 ):
     training = optimizer is not None
     model.train(training)
@@ -153,10 +201,11 @@ def run_epoch(
     prep_seconds = 0.0
     compute_seconds = 0.0
 
-    for batch in batches:
+    for step, (states, cands, mask, labels, values, groups) in enumerate(
+        _iter_prepared(batches, data, prefetch), start=1
+    ):
         prep_started = time.perf_counter()
 
-        states, cands, mask, labels, values, groups = collate(batch, data)
         states = states.to(device)
         cands = cands.to(device)
         mask = mask.to(device)
@@ -195,11 +244,15 @@ def run_epoch(
 
         compute_seconds += time.perf_counter() - compute_started
 
-        size = len(batch)
+        size = len(labels)
         total += size
         total_loss += loss.item() * size
         total_acc += exact * size
         total_group_acc += in_group * size
+
+        if on_batch is not None:
+            # 只喂"到目前为止这一轮的平均 loss"，网页上不会因为单批抖动而乱跳
+            on_batch(step, total_loss / max(total, 1), total)
 
     return {
         "loss": total_loss / max(total, 1),
@@ -226,6 +279,8 @@ def train(
     loss_mode="ce",
     group_weight=0.2,
     verbose=True,
+    prefetch=0,
+    monitor=None,
 ):
     if data_path is None:
         files = sorted(DATA_DIR.glob("games_*.npz"), key=lambda p: p.stat().st_mtime)
@@ -300,15 +355,49 @@ def train(
     best = None
     started = time.perf_counter()
 
+    # 网页进度：训练进程写快照文件，tools.train_monitor 读它
+    writer = None
+
+    if monitor:
+        from training.progress import ProgressWriter
+
+        writer = ProgressWriter(
+            monitor,
+            epochs_total=epochs,
+            data=data_path.name,
+            device=str(dev),
+            batch_size=batch_size,
+            lr=lr,
+        )
+        writer.start(
+            batches_per_epoch=len(train_batches),
+            train_samples=len(train_idx),
+            val_samples=len(val_idx),
+        )
+
     for epoch in range(1, epochs + 1):
         if dev.type == "cuda":
             torch.cuda.reset_peak_memory_stats()
 
+        on_batch = None
+
+        if writer is not None:
+            # 已处理的样本数要按"整次训练累计"算，(epoch-1) 轮之前的也算进去，
+            # 否则第二轮开始速度会突然掉到 1/N（第一版就是这样，已修）。
+            samples_before_epoch = (epoch - 1) * len(train_idx)
+            on_batch = (
+                lambda step, average_loss, seen: writer.batch(
+                    epoch, step, average_loss, samples_before_epoch + seen
+                )
+            )
+
         train_stats = run_epoch(
-            model, train_batches, data, dev, optimizer, value_weight, loss_mode, group_weight
+            model, train_batches, data, dev, optimizer, value_weight, loss_mode,
+            group_weight, prefetch, on_batch=on_batch
         )
         val_stats = run_epoch(
-            model, val_batches, data, dev, None, value_weight, loss_mode, group_weight
+            model, val_batches, data, dev, None, value_weight, loss_mode,
+            group_weight, prefetch
         )
 
         elapsed = time.perf_counter() - started
@@ -335,6 +424,9 @@ def train(
             else None,
         }
         history.append(record)
+
+        if writer is not None:
+            writer.epoch_end(record)
 
         if verbose:
             vram_text = (
@@ -383,6 +475,9 @@ def train(
         "loss_mode": loss_mode,
         "group_weight": group_weight,
         "min_candidates": min_candidates,
+        "prefetch": prefetch,
+        "train_samples": int(len(train_idx)),
+        "val_samples": int(len(val_idx)),
     }
 
     torch.save(checkpoint, out_path)
@@ -395,6 +490,13 @@ def train(
 
     model.load_state_dict(best["state"])
     buckets = accuracy_by_bucket(model, data, val_idx, dev)
+
+    if writer is not None:
+        writer.finish(
+            best_val_acc=round(float(best["val_acc"]), 4),
+            best_epoch=int(best["epoch"]),
+            checkpoint=str(out_path),
+        )
 
     if verbose:
         print("-" * 66)
@@ -415,6 +517,8 @@ def train(
         "best_epoch": best["epoch"],
         "best_val_acc": best["val_acc"],
         "history": history,
+        "train_samples": int(len(train_idx)),
+        "val_samples": int(len(val_idx)),
         "buckets": {
             f"{bucket[0]}-{bucket[1] if bucket[1] < 10 ** 9 else 'inf'}": {
                 "total": buckets[bucket][1],
@@ -458,23 +562,46 @@ def main(argv=None):
         default=0.2,
         help="mixed 模式下等价项的权重",
     )
+    parser.add_argument(
+        "--prefetch",
+        type=int,
+        default=2,
+        help="后台组批线程数（0 = 关）；E18 实测 2 个线程约 +10%% 吞吐",
+    )
+    parser.add_argument(
+        "--monitor",
+        default=None,
+        help="进度快照文件路径；配合 python -m tools.train_monitor 在网页里看实时进度",
+    )
 
     args = parser.parse_args(argv)
 
-    train(
-        data_path=args.data,
-        epochs=args.epochs,
-        batch_size=args.batch_size,
-        lr=args.lr,
-        val_fraction=args.val_fraction,
-        seed=args.seed,
-        device=args.device,
-        out_path=args.out,
-        value_weight=args.value_weight,
-        min_candidates=args.min_candidates,
-        loss_mode=args.loss,
-        group_weight=args.group_weight,
-    )
+    try:
+        train(
+            data_path=args.data,
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            lr=args.lr,
+            val_fraction=args.val_fraction,
+            seed=args.seed,
+            device=args.device,
+            out_path=args.out,
+            value_weight=args.value_weight,
+            min_candidates=args.min_candidates,
+            loss_mode=args.loss,
+            group_weight=args.group_weight,
+            prefetch=args.prefetch,
+            monitor=args.monitor,
+        )
+    except Exception as exc:
+        if args.monitor:
+            # 训练崩了也要让网页显示"失败了"，而不是永远停在最后一轮
+            from training.progress import mark_failed
+
+            mark_failed(args.monitor, exc)
+
+        raise
+
     return 0
 
 

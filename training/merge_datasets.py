@@ -82,8 +82,11 @@ def merge(paths, out_path=None):
             part = array[key]
 
             if key == "game_index":
+                # 注意：先用「平移前」的局部最大值算步长，再平移。
+                # 若先把 part 加上 offset 再取 max，offset 会逐份翻倍（历史 bug）。
+                local_max = int(part.max()) if len(part) else -1
                 part = part + offset
-                offset += int(part.max()) + 1
+                offset += local_max + 1
 
             parts.append(part)
 
@@ -96,7 +99,7 @@ def merge(paths, out_path=None):
         "sources": [path.name for path in paths],
         "samples": int(len(states)),
         "candidates": int(len(cand_flat)),
-        "games": int(merged["game_index"].max()) + 1 if "game_index" in merged else None,
+        "games": int(len(np.unique(merged["game_index"]))) if "game_index" in merged else None,
         "avg_candidates": round(len(cand_flat) / max(len(states), 1), 2),
         "has_groups": bool(has_groups),
     }

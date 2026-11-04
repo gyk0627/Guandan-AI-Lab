@@ -7,7 +7,10 @@
     "val_loss": 1.6495,
     "val_acc": 0.5993,
     "val_group_acc": 0.6314,
-    "seconds": 18.5
+    "seconds": 21.8,
+    "prep_seconds": 1.51,
+    "compute_seconds": 19.37,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 2,
@@ -17,7 +20,10 @@
     "val_loss": 1.5804,
     "val_acc": 0.6093,
     "val_group_acc": 0.6422,
-    "seconds": 38.1
+    "seconds": 41.8,
+    "prep_seconds": 1.32,
+    "compute_seconds": 17.69,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 3,
@@ -27,7 +33,10 @@
     "val_loss": 1.536,
     "val_acc": 0.6226,
     "val_group_acc": 0.655,
-    "seconds": 56.4
+    "seconds": 62.2,
+    "prep_seconds": 1.39,
+    "compute_seconds": 18.12,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 4,
@@ -37,7 +46,10 @@
     "val_loss": 1.4777,
     "val_acc": 0.6359,
     "val_group_acc": 0.6665,
-    "seconds": 75.3
+    "seconds": 82.9,
+    "prep_seconds": 1.44,
+    "compute_seconds": 18.26,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 5,
@@ -47,7 +59,10 @@
     "val_loss": 1.4515,
     "val_acc": 0.6425,
     "val_group_acc": 0.6748,
-    "seconds": 93.1
+    "seconds": 103.0,
+    "prep_seconds": 1.45,
+    "compute_seconds": 17.79,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 6,
@@ -57,7 +72,10 @@
     "val_loss": 1.4085,
     "val_acc": 0.6533,
     "val_group_acc": 0.6867,
-    "seconds": 111.7
+    "seconds": 122.8,
+    "prep_seconds": 1.36,
+    "compute_seconds": 17.48,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 7,
@@ -67,7 +85,10 @@
     "val_loss": 1.3837,
     "val_acc": 0.661,
     "val_group_acc": 0.6948,
-    "seconds": 129.6
+    "seconds": 142.9,
+    "prep_seconds": 1.41,
+    "compute_seconds": 17.79,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 8,
@@ -77,7 +98,10 @@
     "val_loss": 1.3746,
     "val_acc": 0.6636,
     "val_group_acc": 0.6971,
-    "seconds": 149.1
+    "seconds": 162.9,
+    "prep_seconds": 1.38,
+    "compute_seconds": 17.61,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 9,
@@ -87,7 +111,10 @@
     "val_loss": 1.3811,
     "val_acc": 0.6639,
     "val_group_acc": 0.6983,
-    "seconds": 167.9
+    "seconds": 182.3,
+    "prep_seconds": 1.46,
+    "compute_seconds": 16.95,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 10,
@@ -97,7 +124,10 @@
     "val_loss": 1.345,
     "val_acc": 0.6709,
     "val_group_acc": 0.7039,
-    "seconds": 186.6
+    "seconds": 201.2,
+    "prep_seconds": 1.47,
+    "compute_seconds": 16.57,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 11,
@@ -107,7 +137,10 @@
     "val_loss": 1.3212,
     "val_acc": 0.6787,
     "val_group_acc": 0.7133,
-    "seconds": 204.1
+    "seconds": 218.3,
+    "prep_seconds": 1.45,
+    "compute_seconds": 14.66,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 12,
@@ -117,7 +150,10 @@
     "val_loss": 1.3071,
     "val_acc": 0.6816,
     "val_group_acc": 0.7157,
-    "seconds": 222.6
+    "seconds": 235.2,
+    "prep_seconds": 1.4,
+    "compute_seconds": 14.55,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 13,
@@ -127,7 +163,10 @@
     "val_loss": 1.293,
     "val_acc": 0.6823,
     "val_group_acc": 0.7169,
-    "seconds": 240.8
+    "seconds": 251.7,
+    "prep_seconds": 1.43,
+    "compute_seconds": 14.21,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 14,
@@ -137,7 +176,10 @@
     "val_loss": 1.2663,
     "val_acc": 0.6921,
     "val_group_acc": 0.7279,
-    "seconds": 259.8
+    "seconds": 269.3,
+    "prep_seconds": 1.55,
+    "compute_seconds": 15.13,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 15,
@@ -147,7 +189,10 @@
     "val_loss": 1.2459,
     "val_acc": 0.699,
     "val_group_acc": 0.7353,
-    "seconds": 279.5
+    "seconds": 286.5,
+    "prep_seconds": 1.43,
+    "compute_seconds": 14.81,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 16,
@@ -157,7 +202,10 @@
     "val_loss": 1.2404,
     "val_acc": 0.7022,
     "val_group_acc": 0.7391,
-    "seconds": 297.4
+    "seconds": 304.8,
+    "prep_seconds": 1.61,
+    "compute_seconds": 15.72,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 17,
@@ -167,7 +215,10 @@
     "val_loss": 1.207,
     "val_acc": 0.7069,
     "val_group_acc": 0.7449,
-    "seconds": 316.2
+    "seconds": 323.7,
+    "prep_seconds": 1.64,
+    "compute_seconds": 16.21,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 18,
@@ -177,7 +228,10 @@
     "val_loss": 1.1871,
     "val_acc": 0.7117,
     "val_group_acc": 0.7514,
-    "seconds": 334.4
+    "seconds": 342.2,
+    "prep_seconds": 1.62,
+    "compute_seconds": 15.91,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 19,
@@ -187,7 +241,10 @@
     "val_loss": 1.1791,
     "val_acc": 0.7182,
     "val_group_acc": 0.7573,
-    "seconds": 353.3
+    "seconds": 359.6,
+    "prep_seconds": 1.56,
+    "compute_seconds": 14.83,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 20,
@@ -197,7 +254,10 @@
     "val_loss": 1.155,
     "val_acc": 0.7209,
     "val_group_acc": 0.762,
-    "seconds": 371.9
+    "seconds": 377.7,
+    "prep_seconds": 1.67,
+    "compute_seconds": 15.45,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 21,
@@ -207,7 +267,10 @@
     "val_loss": 1.1485,
     "val_acc": 0.7227,
     "val_group_acc": 0.765,
-    "seconds": 391.5
+    "seconds": 398.7,
+    "prep_seconds": 1.8,
+    "compute_seconds": 18.03,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 22,
@@ -217,7 +280,10 @@
     "val_loss": 1.1451,
     "val_acc": 0.7234,
     "val_group_acc": 0.766,
-    "seconds": 409.1
+    "seconds": 416.8,
+    "prep_seconds": 1.59,
+    "compute_seconds": 15.57,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 23,
@@ -227,7 +293,10 @@
     "val_loss": 1.1236,
     "val_acc": 0.7278,
     "val_group_acc": 0.7712,
-    "seconds": 428.4
+    "seconds": 435.0,
+    "prep_seconds": 1.62,
+    "compute_seconds": 15.53,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 24,
@@ -237,7 +306,10 @@
     "val_loss": 1.1182,
     "val_acc": 0.7306,
     "val_group_acc": 0.7737,
-    "seconds": 446.7
+    "seconds": 452.4,
+    "prep_seconds": 1.55,
+    "compute_seconds": 14.86,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 25,
@@ -247,7 +319,10 @@
     "val_loss": 1.1129,
     "val_acc": 0.7276,
     "val_group_acc": 0.7715,
-    "seconds": 465.9
+    "seconds": 470.7,
+    "prep_seconds": 1.65,
+    "compute_seconds": 15.68,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 26,
@@ -257,7 +332,10 @@
     "val_loss": 1.1032,
     "val_acc": 0.7322,
     "val_group_acc": 0.778,
-    "seconds": 485.8
+    "seconds": 487.8,
+    "prep_seconds": 1.51,
+    "compute_seconds": 14.62,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 27,
@@ -267,7 +345,10 @@
     "val_loss": 1.0963,
     "val_acc": 0.7374,
     "val_group_acc": 0.7837,
-    "seconds": 506.3
+    "seconds": 507.0,
+    "prep_seconds": 1.67,
+    "compute_seconds": 16.63,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 28,
@@ -277,7 +358,10 @@
     "val_loss": 1.0834,
     "val_acc": 0.7381,
     "val_group_acc": 0.7844,
-    "seconds": 525.4
+    "seconds": 525.8,
+    "prep_seconds": 1.63,
+    "compute_seconds": 16.13,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 29,
@@ -287,7 +371,10 @@
     "val_loss": 1.0792,
     "val_acc": 0.7352,
     "val_group_acc": 0.7826,
-    "seconds": 545.0
+    "seconds": 545.8,
+    "prep_seconds": 1.76,
+    "compute_seconds": 17.17,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 30,
@@ -297,7 +384,10 @@
     "val_loss": 1.0689,
     "val_acc": 0.7391,
     "val_group_acc": 0.787,
-    "seconds": 564.1
+    "seconds": 564.5,
+    "prep_seconds": 1.77,
+    "compute_seconds": 15.97,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 31,
@@ -307,7 +397,10 @@
     "val_loss": 1.0708,
     "val_acc": 0.7397,
     "val_group_acc": 0.788,
-    "seconds": 583.8
+    "seconds": 583.9,
+    "prep_seconds": 1.7,
+    "compute_seconds": 16.66,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 32,
@@ -317,7 +410,10 @@
     "val_loss": 1.0631,
     "val_acc": 0.7421,
     "val_group_acc": 0.7895,
-    "seconds": 603.3
+    "seconds": 605.6,
+    "prep_seconds": 1.49,
+    "compute_seconds": 19.12,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 33,
@@ -327,7 +423,10 @@
     "val_loss": 1.0512,
     "val_acc": 0.7447,
     "val_group_acc": 0.7931,
-    "seconds": 623.5
+    "seconds": 626.1,
+    "prep_seconds": 1.37,
+    "compute_seconds": 18.09,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 34,
@@ -337,7 +436,10 @@
     "val_loss": 1.0515,
     "val_acc": 0.7426,
     "val_group_acc": 0.7903,
-    "seconds": 642.0
+    "seconds": 646.7,
+    "prep_seconds": 1.47,
+    "compute_seconds": 18.13,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 35,
@@ -347,7 +449,10 @@
     "val_loss": 1.0373,
     "val_acc": 0.7472,
     "val_group_acc": 0.7953,
-    "seconds": 661.4
+    "seconds": 668.2,
+    "prep_seconds": 1.5,
+    "compute_seconds": 19.02,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 36,
@@ -357,7 +462,10 @@
     "val_loss": 1.0428,
     "val_acc": 0.744,
     "val_group_acc": 0.7933,
-    "seconds": 680.3
+    "seconds": 689.0,
+    "prep_seconds": 1.46,
+    "compute_seconds": 18.32,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 37,
@@ -367,7 +475,10 @@
     "val_loss": 1.0305,
     "val_acc": 0.749,
     "val_group_acc": 0.8,
-    "seconds": 700.2
+    "seconds": 710.3,
+    "prep_seconds": 1.47,
+    "compute_seconds": 18.9,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 38,
@@ -377,7 +488,10 @@
     "val_loss": 1.027,
     "val_acc": 0.75,
     "val_group_acc": 0.7991,
-    "seconds": 720.4
+    "seconds": 731.8,
+    "prep_seconds": 1.53,
+    "compute_seconds": 18.95,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 39,
@@ -387,7 +501,10 @@
     "val_loss": 1.0366,
     "val_acc": 0.7484,
     "val_group_acc": 0.7985,
-    "seconds": 740.4
+    "seconds": 753.1,
+    "prep_seconds": 1.51,
+    "compute_seconds": 18.77,
+    "peak_vram_gb": 0.34
   },
   {
     "epoch": 40,
@@ -397,6 +514,9 @@
     "val_loss": 1.0218,
     "val_acc": 0.7486,
     "val_group_acc": 0.8006,
-    "seconds": 759.1
+    "seconds": 774.8,
+    "prep_seconds": 1.47,
+    "compute_seconds": 19.19,
+    "peak_vram_gb": 0.34
   }
 ]

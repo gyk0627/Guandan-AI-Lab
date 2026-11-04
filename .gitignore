@@ -15,8 +15,10 @@ training/data/*.npz
 training/data/_invalid_pre_fix/
 training/data/*.manifest.json
 
-# 模型 checkpoint：训练脚本随时能重跑
-models/*.pt
+# 模型 checkpoint：**入库**（2026-11-04 负责人决定）。
+# 原因：模型只有几百 KB、一共不到 10 MB，却能省掉"误覆盖就得重训 13 分钟"的风险；
+# 训练虽然能重跑，但结果会因环境差异略有不同，已训练好的权重本身就是实验产物。
+# （重训脚本产出的临时权重请写 .test_tmp/，不要落到这里）
 
 # 对局日志：由 auto_game / main.py play / 界面自动生成
 replay/*.jsonl

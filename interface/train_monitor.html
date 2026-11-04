@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>训练进度 · GuanDan AI Lab</title>
+<style>
+  :root {
+    --bg: #0f1b18;
+    --panel: #16261f;
+    --panel-2: #1d3129;
+    --line: #2a453a;
+    --text: #e8f1ec;
+    --muted: #8aa79a;
+    --accent: #4ade80;
+    --accent-dim: #2f6b4c;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --blue: #60a5fa;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    padding: 20px 24px 40px;
+  }
+
+  h1 {
+    font-size: 20px;
+    margin: 0 0 4px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .sub { color: var(--muted); font-size: 13px; }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+
+  .badge .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted);
+  }
+
+  .badge.running { color: var(--accent); border-color: var(--accent-dim); }
+  .badge.running .dot { background: var(--accent); animation: pulse 1.4s infinite; }
+  .badge.done { color: var(--blue); border-color: #2b4a6b; }
+  .badge.done .dot { background: var(--blue); }
+  .badge.failed { color: var(--bad); border-color: #6b2b2b; }
+  .badge.failed .dot { background: var(--bad); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+
+  .progress-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .progress-head .pct { font-size: 30px; font-weight: 700; color: var(--accent); }
+  .progress-head .rounds { color: var(--muted); font-size: 14px; }
+
+  .bar {
+    height: 16px;
+    border-radius: 8px;
+    background: #0b1411;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+
+  .bar > div {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #2f6b4c, var(--accent));
+    transition: width 0.5s ease;
+  }
+
+  .timing {
+    display: flex;
+    gap: 22px;
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+
+  .timing b { color: var(--text); font-weight: 600; }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .card {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+
+  .card .label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .card .value { font-size: 22px; font-weight: 650; }
+  .card .hint { color: var(--muted); font-size: 11px; margin-top: 4px; }
+
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  @media (max-width: 860px) {
+    .charts { grid-template-columns: 1fr; }
+  }
+
+  .chart-title { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  svg { width: 100%; height: 190px; display: block; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  tbody tr.best { background: rgba(74, 222, 128, 0.08); }
+  tbody tr.best td:first-child::after { content: " ★"; color: var(--accent); }
+
+  .table-wrap { max-height: 320px; overflow: auto; }
+
+  .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+
+  .err {
+    background: #2a1616;
+    border: 1px solid #6b2b2b;
+    color: #ffd7d7;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  footer { color: var(--muted); font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>训练进度</h1>
+      <div class="sub" id="meta">等待训练进程写出进度…</div>
+    </div>
+    <span class="badge" id="status"><span class="dot"></span><span id="statusText">等待开始</span></span>
+  </div>
+
+  <div class="err" id="errorBox"></div>
+
+  <div class="panel">
+    <div class="progress-head">
+      <div class="pct" id="pct">0%</div>
+      <div class="rounds" id="rounds">第 0 / 0 轮</div>
+    </div>
+    <div class="bar"><div id="barFill"></div></div>
+    <div class="timing">
+      <span>已用 <b id="elapsed">--</b></span>
+      <span>预计剩余 <b id="eta">--</b></span>
+      <span>本轮 <b id="epochTime">--</b></span>
+      <span>速度 <b id="speed">--</b></span>
+      <span id="batchInfo"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="cards">
+      <div class="card">
+        <div class="label">训练 loss</div>
+        <div class="value" id="trainLoss">--</div>
+        <div class="hint">越低越好，本轮到目前平均</div>
+      </div>
+      <div class="card">
+        <div class="label">训练准确率</div>
+        <div class="value" id="trainAcc">--</div>
+        <div class="hint">本轮训练集上选对的占比</div>
+      </div>
+      <div class="card">
+        <div class="label">验证准确率</div>
+        <div class="value" id="valAcc">--</div>
+        <div class="hint">没参与训练的牌局，更能说明真实水平</div>
+      </div>
+      <div class="card">
+        <div class="label">最佳验证准确率</div>
+        <div class="value" id="bestAcc">--</div>
+        <div class="hint" id="bestEpoch">还没跑完一轮</div>
+      </div>
+      <div class="card">
+        <div class="label">批量 / 学习率</div>
+        <div class="value" id="bslr">--</div>
+        <div class="hint">每批看多少手牌 / 每步改多少权重</div>
+      </div>
+      <div class="card">
+        <div class="label">显存占用</div>
+        <div class="value" id="vram">--</div>
+        <div class="hint">训练本身用多少显存</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="charts">
+      <div>
+        <div class="chart-title">loss 曲线（越低越好）</div>
+        <svg id="lossChart" viewBox="0 0 400 190" preserveAspectRatio="none"></svg>
+        <div class="legend">
+          <span><i style="background:#4ade80"></i>训练</span>
+          <span><i style="background:#60a5fa"></i>验证</span>
+        </div>
+      </div>
+      <div>
+        <div class="chart-title">准确率曲线（越高越好）</div>
+        <svg id="accChart" viewBox="0 0 400 190" preserveAspectRatio="none"></svg>
+        <div class="legend">
+          <span><i style="background:#4ade80"></i>训练</span>
+          <span><i style="background:#60a5fa"></i>验证</span>
+          <span><i style="background:#fbbf24"></i>组内</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="chart-title">每轮明细</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>轮次</th><th>训练 loss</th><th>训练 acc</th>
+            <th>验证 loss</th><th>验证 acc</th><th>组内 acc</th><th>累计秒</th>
+          </tr>
+        </thead>
+        <tbody id="epochRows"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="emptyHint">还没有完成任何一轮。</div>
+  </div>
+
+  <footer id="updated">—</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const POLL_MS = 800;
+
+  function $(id) { return document.getElementById(id); }
+
+  function fmtDuration(seconds) {
+    if (seconds === null || seconds === undefined || !isFinite(seconds)) return "--";
+    const s = Math.max(0, Math.round(seconds));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+
+    if (h > 0) return h + " 小时 " + m + " 分";
+    if (m > 0) return m + " 分 " + sec + " 秒";
+    return sec + " 秒";
+  }
+
+  function fmtPercent(value) {
+    if (value === null || value === undefined) return "--";
+    return (value * 100).toFixed(1) + "%";
+  }
+
+  function fmtNumber(value, digits) {
+    if (value === null || value === undefined) return "--";
+    return Number(value).toFixed(digits === undefined ? 3 : digits);
+  }
+
+  const STATUS_TEXT = {
+    starting: "正在准备数据",
+    running: "正在训练",
+    done: "训练完成",
+    failed: "训练失败"
+  };
+
+  function renderStatus(state) {
+    const badge = $("status");
+    const status = state ? (state.status || "starting") : "waiting";
+
+    badge.className = "badge " + status;
+    $("statusText").textContent = STATUS_TEXT[status] || "等待开始";
+
+    const box = $("errorBox");
+
+    if (state && state.status === "failed" && state.message) {
+      box.style.display = "block";
+      box.textContent = "训练报错了：\n" + state.message;
+    } else {
+      box.style.display = "none";
+    }
+  }
+
+  function renderMeta(state) {
+    if (!state) {
+      $("meta").textContent = "等待训练进程写出进度…（先启动训练，或加上 --monitor 参数）";
+      return;
+    }
+
+    const parts = [];
+
+    if (state.data) parts.push("数据：" + state.data);
+    if (state.device) parts.push("设备：" + state.device);
+    if (state.train_samples) parts.push("训练样本：" + state.train_samples.toLocaleString());
+    if (state.epochs_total) parts.push("计划 " + state.epochs_total + " 轮");
+
+    $("meta").textContent = parts.join("　·　") || "—";
+  }
+
+  function renderProgress(state) {
+    if (!state) {
+      $("pct").textContent = "0%";
+      $("rounds").textContent = "第 0 / 0 轮";
+      $("barFill").style.width = "0%";
+      return;
+    }
+
+    const progress = Math.max(0, Math.min(1, state.progress || 0));
+    $("pct").textContent = (progress * 100).toFixed(1) + "%";
+    $("barFill").style.width = (progress * 100).toFixed(2) + "%";
+
+    const epoch = state.epoch || 0;
+    const total = state.epochs_total || 0;
+    $("rounds").textContent = "第 " + epoch + " / " + total + " 轮";
+
+    $("elapsed").textContent = fmtDuration(state.elapsed_seconds);
+    $("eta").textContent = state.status === "done" ? "0 秒" : fmtDuration(state.eta_seconds);
+    $("epochTime").textContent = state.epoch_seconds
+      ? fmtDuration(state.epoch_seconds)
+      : "--";
+    $("speed").textContent = state.samples_per_second
+      ? Math.round(state.samples_per_second).toLocaleString() + " 样本/秒"
+      : "--";
+
+    $("batchInfo").textContent = state.batches_per_epoch
+      ? "本轮 " + (state.batch || 0) + " / " + state.batches_per_epoch + " 批"
+      : "";
+  }
+
+  function renderCards(state) {
+    if (!state) return;
+
+    $("trainLoss").textContent = fmtNumber(state.train_loss, 4);
+    $("trainAcc").textContent = fmtPercent(state.train_acc);
+    $("valAcc").textContent = fmtPercent(state.val_acc);
+    $("bestAcc").textContent = fmtPercent(state.best_val_acc);
+    $("bestEpoch").textContent = state.best_epoch
+      ? "出现在第 " + state.best_epoch + " 轮"
+      : "还没跑完一轮";
+
+    const bs = state.batch_size ? state.batch_size : "--";
+    const lr = state.lr !== null && state.lr !== undefined
+      ? Number(state.lr).toExponential(0)
+      : "--";
+    $("bslr").textContent = bs + " / " + lr;
+
+    $("vram").textContent = state.peak_vram_gb ? state.peak_vram_gb.toFixed(2) + " GB" : "--";
+  }
+
+  function buildPath(values, xOf, yOf) {
+    const points = [];
+
+    values.forEach(function (value, index) {
+      if (value === null || value === undefined || !isFinite(value)) return;
+      points.push((points.length ? "L" : "M") + xOf(index) + "," + yOf(value));
+    });
+
+    return points.join(" ");
+  }
+
+  function drawChart(svgId, series, options) {
+    const svg = $(svgId);
+    const width = 400;
+    const height = 190;
+    const padLeft = 34;
+    const padRight = 8;
+    const padTop = 10;
+    const padBottom = 22;
+
+    svg.innerHTML = "";
+
+    const all = [];
+
+    series.forEach(function (item) {
+      item.values.forEach(function (value) {
+        if (value !== null && value !== undefined && isFinite(value)) all.push(value);
+      });
+    });
+
+    const ns = "http://www.w3.org/2000/svg";
+
+    function el(name, attrs, text) {
+      const node = document.createElementNS(ns, name);
+      Object.keys(attrs).forEach(function (key) { node.setAttribute(key, attrs[key]); });
+      if (text !== undefined) node.textContent = text;
+      svg.appendChild(node);
+      return node;
+    }
+
+    if (all.length === 0) {
+      el("text", { x: width / 2, y: height / 2, fill: "#8aa79a", "font-size": "13",
+                   "text-anchor": "middle" }, "还没有数据");
+      return;
+    }
+
+    let min = Math.min.apply(null, all);
+    let max = Math.max.apply(null, all);
+
+    if (options.percent) {
+      min = Math.min(min, 0);
+      max = Math.min(1, Math.max(max, 0.1));
+    }
+
+    if (max - min < 1e-6) { max = min + 1; }
+
+    const count = Math.max(
+      series.reduce(function (acc, item) { return Math.max(acc, item.values.length); }, 0),
+      2
+    );
+
+    const xOf = function (index) {
+      return padLeft + (width - padLeft - padRight) * (index / Math.max(count - 1, 1));
+    };
+    const yOf = function (value) {
+      const ratio = (value - min) / (max - min);
+      return height - padBottom - (height - padTop - padBottom) * ratio;
+    };
+
+    // 网格线 + 刻度
+    for (let i = 0; i <= 3; i += 1) {
+      const value = min + (max - min) * (i / 3);
+      const y = yOf(value);
+
+      el("line", {
+        x1: padLeft, y1: y, x2: width - padRight, y2: y,
+        stroke: "#2a453a", "stroke-width": 1
+      });
+
+      const label = options.percent
+        ? (value * 100).toFixed(0) + "%"
+        : value.toFixed(2);
+
+      el("text", {
+        x: padLeft - 6, y: y + 4, fill: "#8aa79a", "font-size": "10",
+        "text-anchor": "end"
+      }, label);
+    }
+
+    series.forEach(function (item) {
+      const path = buildPath(
+        item.values,
+        function (index) { return xOf(index).toFixed(1); },
+        function (value) { return yOf(value).toFixed(1); }
+      );
+
+      if (path) {
+        el("path", {
+          d: path, fill: "none", stroke: item.color,
+          "stroke-width": item.width || 2,
+          "stroke-linejoin": "round", "stroke-linecap": "round"
+        });
+      }
+    });
+  }
+
+  function renderCharts(state) {
+    const history = (state && state.history) || [];
+
+    drawChart("lossChart", [
+      { color: "#4ade80", values: history.map(function (row) { return row.train_loss; }) },
+      { color: "#60a5fa", values: history.map(function (row) { return row.val_loss; }) }
+    ], { percent: false });
+
+    drawChart("accChart", [
+      { color: "#4ade80", values: history.map(function (row) { return row.train_acc; }) },
+      { color: "#60a5fa", values: history.map(function (row) { return row.val_acc; }) },
+      { color: "#fbbf24", values: history.map(function (row) { return row.val_group_acc; }) }
+    ], { percent: true });
+  }
+
+  function renderTable(state) {
+    const history = (state && state.history) || [];
+    const body = $("epochRows");
+
+    $("emptyHint").style.display = history.length ? "none" : "block";
+    body.innerHTML = "";
+
+    const bestEpoch = state && state.best_epoch;
+
+    history.forEach(function (row) {
+      const tr = document.createElement("tr");
+
+      if (row.epoch === bestEpoch) tr.className = "best";
+
+      [
+        row.epoch,
+        fmtNumber(row.train_loss, 4),
+        fmtPercent(row.train_acc),
+        fmtNumber(row.val_loss, 4),
+        fmtPercent(row.val_acc),
+        fmtPercent(row.val_group_acc),
+        row.seconds === undefined ? "--" : Math.round(row.seconds)
+      ].forEach(function (value) {
+        const td = document.createElement("td");
+        td.textContent = value;
+        tr.appendChild(td);
+      });
+
+      body.appendChild(tr);
+    });
+  }
+
+  function render(state) {
+    renderStatus(state);
+    renderMeta(state);
+    renderProgress(state);
+    renderCards(state);
+    renderCharts(state);
+    renderTable(state);
+
+    $("updated").textContent = state && state.updated_at
+      ? "最后更新：" + state.updated_at + "　（每 0.8 秒自动刷新）"
+      : "还没有进度文件";
+  }
+
+  let lastSerialized = "";
+
+  async function poll() {
+    try {
+      const response = await fetch("/api/progress", { cache: "no-store" });
+
+      if (response.status === 404) {
+        render(null);
+        return;
+      }
+
+      const state = await response.json();
+      const serialized = JSON.stringify(state);
+
+      if (serialized !== lastSerialized) {
+        lastSerialized = serialized;
+        render(state);
+      }
+    } catch (error) {
+      $("updated").textContent = "连不上进度服务（训练可能已经结束）";
+    }
+  }
+
+  poll();
+  setInterval(poll, POLL_MS);
+})();
+</script>
+</body>
+</html>

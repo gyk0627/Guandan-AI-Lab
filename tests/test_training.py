@@ -403,6 +403,25 @@ def test_merge_datasets_offsets_and_games(workdir):
     assert "cand_groups" in data.files
 
 
+def test_merge_renumbers_game_index_contiguously(workdir):
+    """多份合并后局号必须是 0..N-1 的连号（偏移量不能逐份翻倍）。"""
+    from training.merge_datasets import merge
+
+    paths = [
+        make_synthetic(workdir / f"part_{index}.npz", games=3, samples_per_game=2)
+        for index in range(4)
+    ]
+
+    out, meta = merge(paths, out_path=workdir / "many.npz")
+    data = np.load(out)
+    game_index = data["game_index"]
+
+    assert meta["games"] == 12
+    assert len(np.unique(game_index)) == 12
+    assert int(game_index.max()) == 11, "局号出现空洞说明偏移量算错"
+    assert set(np.unique(game_index)) == set(range(12))
+
+
 def test_merge_single_file_is_identity(workdir):
     from training.merge_datasets import merge
 
@@ -412,3 +431,51 @@ def test_merge_single_file_is_identity(workdir):
 
     assert data["states"].shape[0] == 6
     assert data["cand_offsets"][-1] == data["cand_flat"].shape[0]
+
+
+# ==================== 后台组批（prefetch） ====================
+
+
+def test_prefetch_matches_synchronous_epoch(workdir):
+    """后台线程组批只能改速度，不能改结果。"""
+    from training.train_bc import run_epoch
+
+    path = make_synthetic(workdir / "p.npz", games=4, samples_per_game=4)
+    data = load_dataset(path)
+
+    torch.manual_seed(0)
+    model = CandidateScorer(8, 4)
+
+    lengths = candidate_lengths(data["cand_offsets"])
+    indices = np.arange(len(data["states"]))
+    batches = list(make_batches(indices, lengths, batch_size=4, shuffle=False))
+
+    torch.manual_seed(0)
+    sync = run_epoch(model, batches, data, torch.device("cpu"), None, prefetch=0)
+    torch.manual_seed(0)
+    fast = run_epoch(model, batches, data, torch.device("cpu"), None, prefetch=2)
+
+    assert sync["samples"] == fast["samples"] == 16
+    assert fast["loss"] == pytest.approx(sync["loss"], rel=1e-6)
+    assert fast["acc"] == pytest.approx(sync["acc"], rel=1e-6)
+
+
+def test_prefetch_surfaces_worker_errors(workdir):
+    """后台线程里组批失败，必须让主线程抛出，而不是静默少跑几批。"""
+    from training import train_bc
+
+    path = make_synthetic(workdir / "bad.npz", games=2, samples_per_game=2)
+    data = load_dataset(path)
+    batches = [np.array([0, 1])]
+
+    def explode(_batch, _data):
+        raise RuntimeError("collate 崩了")
+
+    original = train_bc.collate
+    train_bc.collate = explode
+
+    try:
+        with pytest.raises(RuntimeError, match="collate 崩了"):
+            list(train_bc._iter_prepared(batches, data, prefetch=1))
+    finally:
+        train_bc.collate = original

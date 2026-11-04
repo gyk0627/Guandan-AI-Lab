@@ -430,6 +430,20 @@ $env:PYTHONIOENCODING='utf-8'
 > `export_dataset.py` 才管「语义没坏」（重放整局 + 候选重算 + 标签对齐）。
 > 正式数据两个都要跑。
 
+**导出太慢就用并行版**（同样会重放校验，结果与单进程**逐位一致**）：
+
+```powershell
+# 默认 8 个分片（按 CPU 核数），输出 xxx.parallel.npz
+& .\.venv\Scripts\python.exe -X utf8 -m tools.parallel_export --workers 8
+
+# 指定文件与输出
+& .\.venv\Scripts\python.exe -X utf8 -m tools.parallel_export training\data\games_xxx.jsonl --workers 4
+```
+
+> 原理：导出是纯 CPU 工作，按**对局 id 排序后切连续区间**，各分片同时重放，
+> 最后按分片顺序合并——所以合并后的行序与单进程完全一样，可以逐位比对。
+> 实测 5000 局：单进程约 18 分钟，8 分片约 3.6 分钟（详见 `docs/EXPERIMENTS.md` E21）。
+
 **已经采好的数据集**（2026-11-02，可直接用，不必重采）：
 
 | 数据集 | 局数 / 决策样本 | 平均候选 / 最大候选 | 用途 |
@@ -556,6 +570,28 @@ $env:PYTHONIOENCODING='utf-8'
 - 参考模型 v7 训练成本：**GPU 上 40 轮约 591 秒（≈10 分钟）**。
 - `--device auto` 会自动用 CUDA；`--min-candidates 1` 可关掉剔除（不建议，见下面的教训）。
 - 损失函数默认 `--loss ce`（交叉熵）。`--loss group|mixed` 是**已验证失败的对照**，见下。
+
+**看实时训练进度（网页）**
+
+```powershell
+# 一边训一边看：自动开浏览器，训练参数与 train_bc 一致
+& .\.venv\Scripts\python.exe -X utf8 -m tools.train_with_monitor --epochs 40
+
+# 训练在别的窗口跑，只想看进度
+& .\.venv\Scripts\python.exe -X utf8 -m tools.train_monitor --open
+```
+
+也可以直接双击 `run_train_gui.bat`。
+
+页面上有：总进度条、第几轮 / 共几轮、已用时间与**预计剩余**、训练与验证的 loss/准确率曲线、
+每轮明细表、显存占用；训练中途报错会在页面上标红并显示原因（不会假装还在跑）。
+
+原理一句话：训练进程每 0.5 秒把进度写进 `.test_tmp/train_progress.json`，
+网页每 0.8 秒读一次。**两个程序用文件通信**，所以网页晚开、刷新、关掉重开都不影响训练。
+
+- 单独用：`train_bc` 也支持 `--monitor <路径>`，不想要网页就不加这个参数。
+- 端口默认 `8766`；被占用时加 `--port 8767`。
+- 进度文件是普通 JSON，可以自己打开看，也可以给别的程序读。
 
 **评估**（成对同种子 + 换座位；默认对手是启发式；默认 `--level 2`）：
 
@@ -841,6 +877,13 @@ $env:PYTHONIOENCODING='utf-8'
    编码器只允许读自己的手牌 + 公开信息（已出牌池、上一手、各家剩余张数）。
    把别家手牌编码进状态 = 数据泄漏，实验全部作废。
 
+9. **不要用 PowerShell 改写含中文的源码/配置。**
+   `Get-Content | Set-Content -Encoding utf8` 在 Windows PowerShell 5.1 上会**按 ANSI 读 UTF-8**，
+   写回后中文全变乱码，且往往只在运行时报 `SyntaxError: unterminated string literal`。
+   **2026-11-04 已经这样毁过一次 `tools/parallel_export.py`。**
+   要改源码就用编辑器的「编辑文件」功能（按行替换），不要用 shell 命令。
+   同理：`.ps1` / `.bat` **必须纯 ASCII**（含中文会解析失败）。
+
 ---
 
 ## 十一、常见报错怎么排查
@@ -850,6 +893,7 @@ $env:PYTHONIOENCODING='utf-8'
 | `ModuleNotFoundError: No module named 'numpy'` / `pytest` | 用成了 PATH 里的 python | 用 `& .\.venv\Scripts\python.exe -m pytest ...` |
 | `ModuleNotFoundError: No module named 'game_engine'` | 不在仓库根目录 | 先 `cd` 到 `GuanDan-AI-Lab` 再跑 |
 | 中文/牌面显示成乱码 | 控制台编码 | `$env:PYTHONIOENCODING='utf-8'` |
+| 源码里中文变成 `娌℃湁` 这类乱码、报 `SyntaxError: unterminated string literal` | 被 PowerShell 的 `Get-Content\|Set-Content` 改写过（按 ANSI 读了 UTF-8） | 用编辑器重写该文件；以后不要用 shell 改源码 |
 | `无法将“...”项识别为 cmdlet` 或 `Activate.ps1 无法加载` | PowerShell 执行策略 | 不要激活，直接用 `.\.venv\Scripts\python.exe`；或 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` |
 | `pytest: error: unrecognized arguments: --cache-clear` | 项目禁用了 pytest cache（`pytest.ini`） | 去掉该参数；这是刻意配置，不是故障 |
 | `main.py: error: unrecognized arguments: --games 20`（在 `collect` 子命令下） | 该缺陷已于 2026-11-02 修复；若仍出现，说明 `main.py` 被回退 | 兜底写法：`python -m training.collect_data --games 20` |

@@ -241,3 +241,68 @@ def test_export_rejects_stale_format(workdir):
 
     with pytest.raises(ValueError):
         export(path, out_path=workdir / "x.npz")
+
+
+# ==================== 并行导出（tools/parallel_export.py） ====================
+
+
+def test_parallel_export_group_by_game_keeps_order(workdir):
+    from tools.parallel_export import group_by_game
+
+    path = workdir / "g.jsonl"
+    path.write_text(
+        "\n".join(
+            json.dumps({"game": game, "step": step})
+            for game, step in [(2, 0), (1, 0), (2, 1), (1, 1), (2, 2)]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    games = group_by_game(path)
+
+    assert list(games) == [2, 1]
+    assert [json.loads(line)["step"] for line in games[2]] == [0, 1, 2]
+    assert [json.loads(line)["step"] for line in games[1]] == [0, 1]
+
+
+def test_parallel_export_split_is_contiguous_and_complete():
+    """按对局 id 排序连续切分：合起来的行序必须与单进程导出完全一致。"""
+    from tools.parallel_export import split_sorted
+
+    games = {game: [json.dumps({"game": game})] * 2 for game in [7, 3, 9, 1, 5, 2]}
+    buckets = split_sorted(games, workers=4)
+
+    flat = [game for bucket in buckets for game, _lines in bucket]
+    assert flat == sorted(games), "分片拼接顺序必须等于对局 id 升序"
+    assert sorted(flat) == sorted(games), "不能漏局、不能重复"
+    assert all(len(bucket) <= 2 for bucket in buckets)
+
+
+def test_merge_renumbers_game_index_contiguously_two_parts(workdir):
+    """回归：合并两份时 game_index 偏移曾逐份翻倍（0..2 + 0..1 变成 0..2 + 3..4 才对）。"""
+    from training.merge_datasets import merge
+
+    def make(path, games):
+        samples = games * 2
+        np.savez_compressed(
+            path,
+            states=np.zeros((samples, 4), dtype=np.float32),
+            cand_flat=np.ones((samples, 2), dtype=np.float32),
+            cand_offsets=np.arange(samples + 1, dtype=np.int32),
+            y_index=np.zeros(samples, dtype=np.int64),
+            hand_ranks=np.zeros(samples, dtype=np.int64),
+            team_win=np.zeros(samples, dtype=np.int8),
+            level_up=np.zeros(samples, dtype=np.int8),
+            is_pass=np.zeros(samples, dtype=np.int8),
+            game_index=np.repeat(np.arange(games), 2).astype(np.int64),
+        )
+        return path
+
+    out, meta = merge(
+        [make(workdir / "a.npz", 3), make(workdir / "b.npz", 2)],
+        out_path=workdir / "m.npz",
+    )
+
+    assert meta["games"] == 5
+    assert np.load(out)["game_index"].tolist() == [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
