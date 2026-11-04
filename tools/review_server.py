@@ -418,6 +418,10 @@ class ReviewSession:
     def __init__(self, record_path, out_path=None, level=None, html_path=None):
         self.record_path = Path(record_path)
         self.start, self.rows = read_replay(self.record_path)
+        # 新记录在 game_start 里写了级牌，直接用；老记录没写才靠重放去猜
+        recorded = self.start.get("level") if isinstance(self.start, dict) else None
+        if level is None and isinstance(recorded, str) and recorded in LEVEL_ORDER:
+            level = recorded
         self.snapshots, self.level = load_decisions(self.start, self.rows, level=level)
         self.items = build_decisions(self.snapshots, self.start["seed"])
         self._items_by_step = {item["step"]: item for item in self.items}

@@ -45,3 +45,5 @@ training/data_selfplay/*.manifest.json
 evaluation/*.csv
 
 dist/
+# 别人传回来的对局记录（数据不进 git）
+collected/

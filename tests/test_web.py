@@ -274,6 +274,7 @@ def test_every_game_is_logged(log_dir):
         ]
 
     assert records[0]["event"] == "game_start"
+    assert records[0]["level"] == "2", "开头必须记下打几，否则复盘只能靠猜"
 
     turns = [record for record in records if record["event"] == "turn"]
 

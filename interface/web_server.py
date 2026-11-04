@@ -90,6 +90,7 @@ class GameSession:
             seed=self.seed,
             output_dir=log_dir,
             prefix="human",
+            level=self.level,
         )
         self.log_path = str(self.logger.file_path)
         # 本局到底动过几手：用来判断开新局时这局是不是空壳（空壳不留日志文件）

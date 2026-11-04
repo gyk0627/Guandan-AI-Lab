@@ -48,6 +48,22 @@ def make_session(workdir, record=FAST_FILE, **kwargs):
     )
 
 
+def copy_with_level(workdir, record, level):
+    """复制一份记录，并在 game_start 里补上级牌（模拟新版 exe 写出的日志）。"""
+    rows = [
+        json.loads(line)
+        for line in Path(record).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    rows[0]["level"] = level
+    path = workdir / f"with_level_{level}.jsonl"
+    path.write_text(
+        "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 def as_tuples(cards):
     """JSON 里的牌（list / str）转回引擎用的 tuple / str。"""
     return [tuple(card) if isinstance(card, list) else card for card in cards]
@@ -141,6 +157,21 @@ def test_auto_level_is_two_for_fast_file(workdir):
     assert session.level == "2"
     assert session.turn_count > 0
     assert session.stats()["level"] == "2"
+
+
+def test_recorded_level_is_used_directly(workdir):
+    """新记录在 game_start 里写了级牌，就不该再靠「逐个试」去猜。"""
+    record = copy_with_level(workdir, Q_FILE, "Q")
+    session = make_session(workdir, record)
+    assert session.level == "Q"
+    assert session.stats()["total"] > 0
+
+
+def test_recorded_level_that_conflicts_is_still_rejected(workdir):
+    """记录里写错了级牌就明确报错，不许静默按错的级牌重放。"""
+    record = copy_with_level(workdir, Q_FILE, "2")
+    with pytest.raises(ReviewError, match="级牌"):
+        make_session(workdir, record)
 
 
 # ---------------------------------------------------------------------------

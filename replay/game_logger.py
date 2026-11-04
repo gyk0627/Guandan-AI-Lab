@@ -21,7 +21,7 @@ def serialize_cards(cards):
 
 class GameLogger:
 
-    def __init__(self, seed=None, output_dir=None, prefix="game"):
+    def __init__(self, seed=None, output_dir=None, prefix="game", level=None):
         output_dir = (
             Path(output_dir)
             if output_dir is not None
@@ -40,11 +40,13 @@ class GameLogger:
 
         self.turn_count = 0
         self.seed = seed
+        self.level = level
         self.closed = False
 
         self.write({
             "event": "game_start",
             "seed": seed,
+            "level": level,
             "time": datetime.now().isoformat()
         })
 
