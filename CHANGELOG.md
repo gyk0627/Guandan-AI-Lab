@@ -7,6 +7,34 @@
 
 ---
 
+## 2026-11-04（23:30）— 工具/界面：一键把对局记录发到作者邮箱
+
+**需求**：朋友不会配网络、不会改配置文件，最好「打完点一下，记录就到作者邮箱」。
+
+**新增**
+- `interface/mailer.py`：读 exe 旁 `mail.json`（`to/host/port/user/password/ssl/timeout`）；
+  `build_package()` 在内存里把记录打成 zip（含 `info.json`、`说明.txt`、可选 `备注.txt`，附每份 sha256）；
+  `send()` 用 `EmailMessage` + `smtplib.SMTP_SSL`（或 STARTTLS）登录发送；`device_id()` 生成稳定匿名设备号（`mail_state.json`）。
+- 界面右上角新增**「发送给作者」**按钮 → `POST /api/send`：配了邮箱就直接发；没配/发不出去
+  就把 zip 存到「下载」（`GUANDAN_EXPORT_DIR` 可覆盖）并把完整路径显示在状态栏，不影响继续打牌。
+- `tools.package_exe` 新增 `--email`、`--smtp-host/--smtp-port/--smtp-user/--smtp-password/--smtp-no-ssl`：
+  打包时写入 `mail.json`，朋友解压双击即可零配置发送；说明文本按「发邮件 / 自动上传 / 导出文件」
+  三种模式分别解释。缺 SMTP 参数时提前退出，不会打出「点了发不出去」的包。
+- 安全提示（README / USAGE / 打包输出都会说）：`mail.json` 里的密码随包分发、可被解出，
+  必须用专用邮箱 + 授权码，不用个人主邮箱登录密码；泄露后吊销授权码即可。
+
+**实测**
+- 源码：点「发送给作者」（未配邮箱）→ 状态栏「没有配置收件邮箱，已打包存到：…\guandan_<设备号>_<时间>.zip」，zip 1,362 B，内含 `human_*.jsonl`。
+- 打包版：写入指向 `127.0.0.1:1` 的假邮箱配置 → 返回 `sent:false`、`reason:"发送失败：[WinError 10061]…"`，
+  zip 1,358 B 正常落盘（证明「发不出去也不丢数据」这条兜底在 exe 里有效）。
+- 真实的「发送成功」需要有效 SMTP 授权码，仓库内无法离网验证——这一点如实写在这里。
+
+**测试**：458 → **465 通过**（`465 passed in 35.05s`）：`tests/test_mailer.py` 6 条（配置校验、打包内容、
+假 SMTP 验证邮件字段/附件、设备号稳定）、`/api/send` 离线兜底 1 条、打包说明与配置 3 条；
+`test_index_page_is_served` 增加「发送给作者」断言。
+
+---
+
 ## 2026-11-04（23:20）— 工具/界面/文档：把「发给别人怎么玩、记录怎么收回来」写清楚
 
 **问题**：包发给朋友后，对局记录只落在对方 `replay/`，没有任何回收通道；`upload.json.example`

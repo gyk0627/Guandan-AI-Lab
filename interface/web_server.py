@@ -22,6 +22,7 @@ import os
 import random
 import shutil
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -29,6 +30,7 @@ from pathlib import Path
 from game_engine.game_state import GameState
 from game_engine.legal_moves import legal_moves
 from game_engine.patterns import analyze_cards, type_label
+from interface import mailer
 from players.heuristic import choose_move
 from replay.game_logger import GameLogger
 from training.serialize import card_to_text, text_to_cards
@@ -316,6 +318,7 @@ class Handler(BaseHTTPRequestHandler):
     session: GameSession = None
     log_dir = None
     on_log_ready = None
+    home = None  # exe 所在目录（mail.json 放在这里）
     page_served = False  # 窗口是不是真的把页面要走了（用来判断窗口有没有白屏）
     lock = threading.Lock()
 
@@ -428,6 +431,91 @@ class Handler(BaseHTTPRequestHandler):
             },
         )
 
+    def _config_home(self):
+        home = type(self).home
+        return Path(home) if home else Path.cwd()
+
+    def _downloads_dir(self):
+        return Path(os.environ.get("GUANDAN_EXPORT_DIR") or (Path.home() / "Downloads"))
+
+    def _save_package(self, payload, name):
+        """把打好包的 zip 存一份到「下载」，返回路径（存不下就返回 None）。"""
+        try:
+            target_dir = self._downloads_dir()
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target = target_dir / name
+            target.write_bytes(payload)
+            return target
+        except OSError:
+            return None
+
+    def _send_latest_log(self):
+        """「发送给作者」：打成一个 zip，配了邮箱就直接发，否则存到「下载」。
+
+        玩家机器上不一定有邮件客户端，也不一定会配网络，所以这里只做一件事：
+        点一下，要么「已发送到作者邮箱」，要么「已存到下载，请手动发」。
+        """
+        path = self._latest_log()
+        if path is None:
+            self._send(404, {"error": "还没有可发送的对局记录"})
+            return
+
+        home = self._config_home()
+        config = mailer.load_config(home / mailer.CONFIG_NAME)
+        device = mailer.device_id(home / mailer.STATE_NAME)
+        stamp = time.strftime("%Y%m%d_%H%M%S")
+        zip_name = f"guandan_{device}_{stamp}.zip"
+
+        if not config:
+            try:
+                payload, _files = mailer.build_package([path], device)
+            except (OSError, FileNotFoundError) as error:
+                self._send(500, {"error": f"打包失败：{error}"})
+                return
+            saved = self._save_package(payload, zip_name)
+            self._send(
+                200,
+                {
+                    "sent": False,
+                    "reason": "没有配置收件邮箱",
+                    "saved": str(saved) if saved else None,
+                    "name": zip_name,
+                    "bytes": len(payload),
+                },
+            )
+            return
+
+        try:
+            result = mailer.send([path], config, device)
+        except Exception as error:  # noqa: BLE001 - 网络/账号问题都要给玩家一条退路
+            try:
+                payload, _files = mailer.build_package([path], device)
+                saved = self._save_package(payload, zip_name)
+            except (OSError, FileNotFoundError):
+                payload, saved = b"", None
+            self._send(
+                200,
+                {
+                    "sent": False,
+                    "reason": f"发送失败：{error}",
+                    "saved": str(saved) if saved else None,
+                    "name": zip_name,
+                    "bytes": len(payload),
+                },
+            )
+            return
+
+        self._send(
+            200,
+            {
+                "sent": True,
+                "to": result["to"],
+                "name": zip_name,
+                "bytes": result["zip_bytes"],
+            },
+        )
+
+
 
     def do_GET(self):
         if self.path in ("/", "/index.html"):
@@ -474,6 +562,12 @@ class Handler(BaseHTTPRequestHandler):
             # 窗口版不弹下载框，干脆由服务端直接存到「下载」文件夹再回报路径
             with self.lock:
                 self._save_latest_log()
+            return
+
+        if self.path == "/api/send":
+            # 一键发送：打成 zip 发到作者邮箱；没配邮箱就存到「下载」
+            with self.lock:
+                self._send_latest_log()
             return
 
         with self.lock:
@@ -541,6 +635,7 @@ def create_server(
     model_path=None,
     log_dir=None,
     on_log_ready=None,
+    home=None,
 ):
     handler = type(
         "BoundHandler",
@@ -556,6 +651,7 @@ def create_server(
             ),
             "log_dir": log_dir,
             "on_log_ready": on_log_ready,
+            "home": home,
         },
     )
 

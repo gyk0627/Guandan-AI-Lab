@@ -67,11 +67,14 @@ def relaunch_without_admin() -> bool:
     return True
 
 
-def pick_port(server_module, requested, level, log_dir, attempts=20, on_log_ready=None):
+def pick_port(server_module, requested, level, log_dir, attempts=20, on_log_ready=None, home=None):
     """从 requested 开始往后找一个能监听的端口。"""
     last_error = None
     for offset in range(attempts):
         port = requested + offset
+        options = {}
+        if home is not None:
+            options["home"] = home
         try:
             server = server_module.create_server(
                 port=port,
@@ -79,6 +82,7 @@ def pick_port(server_module, requested, level, log_dir, attempts=20, on_log_read
                 use_neural=False,
                 log_dir=log_dir,
                 on_log_ready=on_log_ready,
+                **options,
             )
         except OSError as error:  # 端口被占
             last_error = error

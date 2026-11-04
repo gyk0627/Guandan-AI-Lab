@@ -47,3 +47,8 @@ evaluation/*.csv
 dist/
 # 别人传回来的对局记录（数据不进 git）
 collected/
+
+# 打包时写进发布包的邮箱/上传配置（含密码，绝不入库）
+mail.json
+mail_state.json
+upload_state.json

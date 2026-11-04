@@ -128,6 +128,44 @@ def test_upload_url_must_start_with_http(monkeypatch):
     assert "http" in str(error.value)
 
 
+def test_readme_with_email_points_at_the_send_button():
+    """配了邮箱的包：教玩家点「发送给作者」，不用再手动导出文件。"""
+    text = package_exe.make_readme(False, True)
+    assert "发送给作者" in text
+    assert "邮箱" in text
+
+
+def test_write_mail_config_writes_what_the_app_reads(workdir):
+    folder = workdir / "发布包"
+    path = package_exe.write_mail_config(
+        folder,
+        to="author@example.com",
+        host="smtp.example.com",
+        port=465,
+        user="sender@example.com",
+        password="s3cret-token",
+    )
+
+    assert path == folder / "mail.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["to"] == "author@example.com"
+    assert data["host"] == "smtp.example.com"
+    assert data["ssl"] is True
+    assert data["timeout"] == 40.0
+
+
+def test_email_without_smtp_settings_is_rejected(monkeypatch):
+    """只给 --email 不够：缺发信服务器/账号/授权码时提前退出，别打出一个发不出去的包。"""
+
+    def explode(*args, **kwargs):
+        raise AssertionError("参数不合法时不该开始打包")
+
+    monkeypatch.setattr(package_exe, "build", explode)
+    with pytest.raises(SystemExit) as error:
+        package_exe.main(["--email", "author@example.com"])
+    assert "--smtp-host" in str(error.value)
+
+
 def test_window_host_files_are_part_of_the_build():
     """外壳和三个 DLL 必须打进包，否则就退化成 Edge 应用模式（管理员权限会白屏）。"""
     for filename in build_exe.HOST_FILES:

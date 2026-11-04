@@ -175,6 +175,7 @@
     <option>6</option><option>7</option><option>8</option><option>9</option>
     <option>10</option><option>J</option><option>Q</option><option>K</option><option>A</option>
   </select>
+  <button id="sendBtn" title="把这一局的记录打包发到作者邮箱；没配邮箱就存到「下载」">发送给作者</button>
   <button id="exportBtn" title="把这一局的记录保存到电脑，可以发给组织者">导出对局</button>
   <button id="newBtn" class="primary">新的一局</button>
 </header>
@@ -506,6 +507,33 @@ document.getElementById("exportBtn").onclick = async () => {
   } catch (error) {
     statusEl.className = "status err";
     statusEl.textContent = `导出失败：${error}`;
+  } finally {
+    button.disabled = false;
+  }
+};
+
+document.getElementById("sendBtn").onclick = async () => {
+  // 一键发给作者：配了邮箱就直接发，没配就打包存到「下载」，都会把结果说清楚
+  const button = document.getElementById("sendBtn");
+  const statusEl = document.getElementById("status");
+  button.disabled = true;
+  statusEl.className = "status";
+  statusEl.textContent = "正在打包对局记录……";
+  try {
+    const result = await api("/api/send", {});
+    if (result.sent) {
+      statusEl.className = "status";
+      statusEl.textContent = `已发送到作者邮箱（${result.to}）。谢谢你！`;
+    } else if (result.saved) {
+      statusEl.className = "status";
+      statusEl.textContent = `${result.reason || "没有配置收件邮箱"}，已打包存到：${result.saved}`;
+    } else {
+      statusEl.className = "status err";
+      statusEl.textContent = result.reason || result.error || "发送失败";
+    }
+  } catch (error) {
+    statusEl.className = "status err";
+    statusEl.textContent = `发送失败：${error}`;
   } finally {
     button.disabled = false;
   }

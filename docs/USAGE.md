@@ -120,9 +120,27 @@ exe 内是启发式 AI；神经网络策略需要 PyTorch，不打包。
 
 ### 收集别人的对局记录
 
-按「朋友要不要动手」分两种方式：
+按「朋友要不要动手」分三种方式：
 
-**方式一：自动回传（推荐，朋友零操作）**
+**方式一：一键发到作者邮箱（最省事，朋友只点一下）**
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe `
+    --email 你的邮箱@example.com `
+    --smtp-host smtp.qq.com --smtp-user 你的邮箱@example.com --smtp-password 授权码
+```
+
+- 发布包里会写入 `mail.json`（`to/host/port/user/password/ssl`）。
+- 朋友解压双击，打完点右上角**「发送给作者」**：程序把这一局打成 zip，用 SMTP 直接发到 `--email`。
+- 发不出去（断网、端口被封）时不会报错给玩家看一堆堆栈：zip 会存到「下载」，
+  界面显示完整路径，朋友把文件发回来即可。
+- 163 邮箱用 `smtp.163.com`；QQ 邮箱用 `smtp.qq.com`（端口 465，SSL）。
+  端口 587 的服务器加 `--smtp-no-ssl` 走 STARTTLS。
+
+> ⚠️ 安全：`mail.json` 里的密码随包分发、可被解出。请建**专用发信邮箱**并用**授权码**，
+> 不要用个人主邮箱的登录密码；一旦包外流，吊销授权码即可，不影响主邮箱。
+
+**方式二：自动回传（自己开接收端，朋友零操作）**
 
 1. 接收方双击 `start_collector.bat`（端口 8790、口令 `guandan-local`、文件存 `collected\`），窗口别关。
 2. 打包时带 `--upload-url http://接收端IP:8790/upload`，`--token` 与接收端一致
@@ -130,9 +148,9 @@ exe 内是启发式 AI；神经网络策略需要 PyTorch，不打包。
 3. 把 zip 发给朋友：解压、双击、每局自动上传。断网会先存本地，下次启动按 sha256 去重补传；
    状态在 `upload_state.json`。
 
-**方式二：朋友点「导出对局」发文件**
+**方式三：朋友点「导出对局」发文件**
 
-1. 打包时不带 `--upload-url`，发布包里只有 `upload.json.example`。
+1. 打包时不带 `--upload-url` / `--email`，发布包里只有 `upload.json.example`。
 2. 朋友打完（打一半也行）点右上角「导出对局」，文件存到「下载」文件夹（文件名以 `human_` 开头）。
 3. 朋友把文件发给你，直接放进 `collected\` 或另存即可。
 

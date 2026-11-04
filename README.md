@@ -61,9 +61,24 @@
 
 窗口是进程内嵌的 WebView2 控件（Win11 自带；Win10 一般随 Edge 装好），不是外部浏览器——所以即使 Windows 账户是管理员权限也不会白屏。万一系统缺 WebView2，程序会提示一句并自动改用默认浏览器打开。包里是启发式 AI。
 
-对局记录默认只存本地 `replay/`。想收集别人的对局，先决定用哪种打包方式：
+对局记录默认只存本地 `replay/`。想收集别人的对局，选一种打包方式：
 
-**模式 A：包里配好回传地址（朋友零操作）**
+**模式 A：一键发到作者邮箱（推荐，朋友只需点一下按钮）**
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe `
+    --email 你的邮箱@example.com `
+    --smtp-host smtp.qq.com --smtp-user 你的邮箱@example.com --smtp-password 授权码
+```
+
+发布包里会写入 `mail.json`。朋友解压双击就能玩，打完点窗口右上角**「发送给作者」**，
+记录就打包成 zip 直接发到你的邮箱——不用改文件、不用装邮件客户端。
+网络不通时按钮会自动把 zip 存到「下载」并显示路径，朋友把文件发给你也行。
+
+> ⚠️ `mail.json` 里的 SMTP 密码跟着包一起分发，拿到包的人能解出来。
+> 请用**专用邮箱 + 授权码**（QQ/163 邮箱在设置里开 SMTP 后生成），不要用个人主邮箱的登录密码。
+
+**模式 B：包里配好回传地址（自己开接收端，朋友零操作）**
 
 ```powershell
 & .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe `
@@ -73,7 +88,7 @@
 朋友解压、双击就能玩，每局打完自动传回；传不上去会先存本地，下次启动接着传，
 不用教他改任何文件。
 
-**模式 B：不配地址（朋友点「导出对局」发文件）**
+**模式 C：什么都不配（朋友点「导出对局」发文件）**
 
 ```powershell
 & .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe

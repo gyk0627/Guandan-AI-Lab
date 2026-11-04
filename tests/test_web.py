@@ -79,6 +79,7 @@ def test_index_page_is_served():
         assert "掼蛋" in html
         assert "api/play" in html
         assert "导出对局" in html, "界面要有「导出对局」按钮，不会配网络的人也能把记录发回来"
+        assert "发送给作者" in html, "界面要有「发送给作者」按钮，点一下就能把记录发到作者邮箱"
 
 
 def test_export_returns_the_latest_record():
@@ -127,8 +128,45 @@ def test_export_post_saves_the_file_and_reports_the_path():
     saved = Path(result["saved"])
     assert saved.exists()
     assert saved.parent == target
-    assert result["bytes"] == saved.stat().st_size > 200
     assert saved.name.startswith("human_") and saved.suffix == ".jsonl"
+    assert result["bytes"] == saved.stat().st_size > 200
+
+
+def test_send_without_mail_config_packs_a_zip_for_manual_delivery():
+    """没配邮箱时不报错：打成一个 zip 存到「下载」，并把路径告诉玩家。"""
+    import os
+
+    from pathlib import Path
+
+    target = Path(__file__).resolve().parent.parent / ".test_tmp" / "send_target"
+    target.mkdir(parents=True, exist_ok=True)
+    for stale in target.glob("guandan_*.zip"):
+        stale.unlink()
+
+    previous = os.environ.get("GUANDAN_EXPORT_DIR")
+    os.environ["GUANDAN_EXPORT_DIR"] = str(target)
+    try:
+        # home 指向一个没有 mail.json 的目录 = 离线版
+        with running_server(seed=13, level="2", home=target) as base:
+            _, state = get_json(base + "/api/state")
+            post(base + "/api/play", {"cards": [state["hand"][0]]})
+            status, result = post(base + "/api/send", {})
+    finally:
+        if previous is None:
+            os.environ.pop("GUANDAN_EXPORT_DIR", None)
+        else:
+            os.environ["GUANDAN_EXPORT_DIR"] = previous
+
+    assert status == 200
+    assert result["sent"] is False
+    assert "没有配置收件邮箱" in result["reason"]
+    saved = Path(result["saved"])
+    assert saved.exists() and saved.suffix == ".zip"
+    assert saved.parent == target
+    import zipfile
+
+    with zipfile.ZipFile(saved) as archive:
+        assert any(name.startswith("human_") for name in archive.namelist())
 
 
 def test_initial_state():
