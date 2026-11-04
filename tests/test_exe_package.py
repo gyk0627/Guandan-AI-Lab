@@ -82,3 +82,41 @@ def test_release_readme_mentions_how_to_start():
     text = package_exe.README
     for keyword in ("解压", "双击", "GuandanAI.exe", "浏览器"):
         assert keyword in text
+
+
+def test_wait_until_ready_detects_a_live_server():
+    """服务能应答时立刻返回 True（避免 Edge 开白页）。"""
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802 - 标准库要求这个名字
+            body = b'{"level": "2"}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.server_address[1]}/"
+        assert app_module.wait_until_ready(url, timeout=3.0) is True
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_wait_until_ready_gives_up_quickly_on_a_dead_port():
+    import socket
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        free_port = probe.getsockname()[1]
+    # 端口已经释放，没有服务在听
+    assert app_module.wait_until_ready(f"http://127.0.0.1:{free_port}/", timeout=0.3) is False

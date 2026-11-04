@@ -47,6 +47,27 @@ def pick_port(server_module, requested, level, log_dir, attempts=20, on_log_read
     raise SystemExit(f"从 {requested} 起的 {attempts} 个端口都打不开：{last_error}")
 
 
+def wait_until_ready(url, timeout=8.0):
+    """等本地服务真的能应答，再开窗口。
+
+    Edge 的应用模式在「服务还没起来」时开窗会得到一张白页；先探一下再开，
+    启动慢的机器上就不会闪白屏了。
+    """
+    import urllib.request
+
+    probe = url.rstrip("/") + "/api/state"
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(probe, timeout=0.5) as response:
+                if response.status == 200:
+                    return True
+        except OSError:
+            pass
+        time.sleep(0.1)
+    return False
+
+
 def start_uploader(base, log_dir, disabled=False):
     """有 upload.json 就起后台上传线程；没有就完全离线。"""
     from interface.uploader import Uploader
@@ -107,6 +128,10 @@ def main(argv=None) -> int:
     window = None
     started = time.time()
     if not args.no_browser:
+        if not wait_until_ready(url):
+            print("服务启动较慢，仍然尝试打开窗口……")
+        else:
+            print("正在打开游戏窗口（第一次启动需要几秒）……")
         if args.browser:
             webbrowser.open(url)
         else:
@@ -116,6 +141,8 @@ def main(argv=None) -> int:
             if window is None:
                 print("没找到 Edge，改用默认浏览器打开。")
                 webbrowser.open(url)
+            else:
+                print("窗口空白就按一下 F5 刷新。")
 
     try:
         if window is not None:
