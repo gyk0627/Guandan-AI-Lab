@@ -84,6 +84,22 @@ def test_release_readme_mentions_how_to_start():
         assert keyword in text
 
 
+def test_drop_admin_command_uses_restricted_token():
+    """管理员启动时要能把自己降权重启，否则 Edge 会拒绝渲染（白窗）。"""
+    command = app_module.drop_admin_command(["--level", "7", "--home", r"C:\有 空格\dir"])
+    assert command[0] == "runas"
+    assert command[1] == "/trustlevel:0x20000"
+    body = command[2]
+    assert "--level 7" in body
+    assert '"C:\\有 空格\\dir"' in body, "带空格的路径必须加引号"
+    assert body.rstrip().endswith("--relaunched")
+
+
+def test_drop_admin_command_does_not_stack_relaunch_flags():
+    command = app_module.drop_admin_command(["--relaunched", "--port", "8899"])
+    assert command[2].count("--relaunched") == 1
+
+
 def test_wait_until_ready_detects_a_live_server():
     """服务能应答时立刻返回 True（避免 Edge 开白页）。"""
     import threading

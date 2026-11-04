@@ -11,6 +11,7 @@
 """
 
 import argparse
+import subprocess
 import sys
 import threading
 import time
@@ -23,6 +24,47 @@ def application_dir() -> Path:
     if getattr(sys, "frozen", False):  # PyInstaller 打包后
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parent.parent
+
+
+def is_elevated() -> bool:
+    """当前进程是不是以管理员权限在跑。"""
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:  # 非 Windows 或调用失败时按「不是管理员」处理
+        return False
+
+
+def drop_admin_command(argv=None) -> list:
+    """用 runas 的受限令牌把程序重新拉起来（权限降为普通用户）。
+
+    Edge 不接受「管理员权限的浏览器」，在关闭 UAC 的机器上双击 exe 会继承
+    管理员令牌，窗口就会一片空白。受限令牌（trustlevel 0x20000）不需要密码，
+    降到普通用户后 Edge 才肯正常渲染。
+    """
+    argv = list(sys.argv[1:] if argv is None else argv)
+    argv = [item for item in argv if item != "--relaunched"]
+    if getattr(sys, "frozen", False):
+        prefix = [sys.executable]
+    else:
+        prefix = [sys.executable, "-X", "utf8", "-m", "interface.app"]
+    command = subprocess.list2cmdline(prefix + argv + ["--relaunched"])
+    return ["runas", "/trustlevel:0x20000", command]
+
+
+def relaunch_without_admin() -> bool:
+    """降权重启；成功返回 True（调用方应立刻退出）。"""
+    try:
+        subprocess.Popen(
+            drop_admin_command(),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except OSError:
+        return False
+    return True
 
 
 def pick_port(server_module, requested, level, log_dir, attempts=20, on_log_ready=None):
@@ -97,7 +139,14 @@ def main(argv=None) -> int:
     parser.add_argument("--browser", action="store_true", help="改用系统默认浏览器打开")
     parser.add_argument("--no-upload", action="store_true", help="本次不传对局记录")
     parser.add_argument("--home", default=None, help="数据目录（默认是 exe 所在文件夹；测试用）")
+    parser.add_argument("--relaunched", action="store_true", help="内部用：已经降权重启过，别再重启")
     args = parser.parse_args(argv)
+
+    if not args.no_browser and not args.relaunched and is_elevated():
+        print("检测到以管理员权限运行：浏览器不接受管理员模式，正在改用普通权限重启……")
+        if relaunch_without_admin():
+            return 0
+        print("切换普通权限失败，继续以当前权限运行（窗口可能显示空白）。")
 
     base = Path(args.home).resolve() if args.home else application_dir()
     log_dir = base / "replay"
