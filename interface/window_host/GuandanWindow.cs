@@ -37,7 +37,7 @@ namespace GuandanHost
 
             var form = new Form
             {
-                Text = "掼蛋人机对战",
+                Text = "掼蛋人机对战 v1.1",
                 Width = 1280,
                 Height = 900,
                 MinimumSize = new Size(960, 700),

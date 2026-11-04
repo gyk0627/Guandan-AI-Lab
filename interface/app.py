@@ -18,6 +18,8 @@ import time
 import webbrowser
 from pathlib import Path
 
+APP_VERSION = "1.1"
+
 
 def application_dir() -> Path:
     """exe 所在的文件夹；从源码运行时是仓库根目录。"""
@@ -163,7 +165,7 @@ def main(argv=None) -> int:
     url = f"http://127.0.0.1:{port}/"
 
     print("=" * 58)
-    print("掼蛋人机对战")
+    print(f"掼蛋人机对战 v{APP_VERSION}")
     print("=" * 58)
     print(f"地址：{url}")
     print("你是 0 号位（A 队），队友 2 号位；对手是 1、3 号位")
