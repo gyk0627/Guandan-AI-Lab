@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>掼蛋 · 人类偏好标注</title>
+<style>
+  :root {
+    --felt: #0f5132;
+    --felt-dark: #0a3d26;
+    --felt-deep: #072d1c;
+    --line: rgba(255, 255, 255, .16);
+    --card-bg: #fdfdfb;
+    --red: #c62828;
+    --gold: #e8c46a;
+    --green: #7dd6a0;
+    --text: #eaf3ee;
+    --muted: rgba(234, 243, 238, .62);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    background:
+      radial-gradient(circle at 50% -20%, #1a7a4a 0%, var(--felt) 42%, var(--felt-dark) 78%, var(--felt-deep) 100%);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 14px 26px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(0, 0, 0, .22);
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 21px;
+    letter-spacing: .5px;
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  .chip {
+    font-size: 13px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, .07);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .chip b { color: var(--text); font-weight: 600; }
+
+  .spacer { flex: 1; }
+
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 18px 22px 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .progress {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, .3);
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--gold), var(--green));
+    transition: width .25s ease;
+  }
+
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(0, 0, 0, .18);
+    padding: 16px 20px;
+    box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
+  }
+
+  .decision-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .step-title { font-size: 20px; font-weight: 700; }
+  .step-title .step-num { color: var(--gold); font-size: 24px; }
+  .nav { display: flex; gap: 8px; }
+
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+
+  .section-title {
+    margin: 4px 0 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: .4px;
+  }
+
+  .hand, .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    align-items: center;
+    min-height: 76px;
+  }
+
+  .card {
+    position: relative;
+    width: 52px;
+    height: 74px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: #17211b;
+    border: 1px solid rgba(0, 0, 0, .28);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, .3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    user-select: none;
+  }
+
+  .card.red { color: var(--red); }
+
+  .card .rank {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .card .suit {
+    font-size: 27px;
+    line-height: 1;
+    margin-top: 8px;
+  }
+
+  .card.joker .suit { font-size: 13px; letter-spacing: 1px; margin-top: 18px; }
+  .card.joker .rank { font-size: 13px; }
+
+  .card .wild {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    font-size: 10px;
+    line-height: 1;
+    padding: 2px 3px;
+    border-radius: 4px;
+    background: var(--gold);
+    color: #3d2c06;
+    font-weight: 700;
+  }
+
+  .card.mini { width: 40px; height: 57px; border-radius: 6px; }
+  .card.mini .rank { font-size: 11px; top: 3px; left: 4px; }
+  .card.mini .suit { font-size: 19px; margin-top: 10px; }
+  .card.mini .wild { display: none; }
+
+  .pass-tag {
+    font-size: 26px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    padding: 18px 10px;
+  }
+
+  .table-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 900px) {
+    .choices { grid-template-columns: 1fr; }
+  }
+
+  .option {
+    border: 2px solid var(--line);
+    border-radius: 16px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, .045);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: border-color .15s ease, background .15s ease;
+  }
+
+  .option.a { border-color: rgba(232, 196, 106, .55); }
+  .option.b { border-color: rgba(125, 214, 160, .5); }
+  .option.chosen { background: rgba(232, 196, 106, .12); }
+  .option.chosen.b { background: rgba(125, 214, 160, .12); }
+
+  .option-head { display: flex; align-items: center; gap: 12px; }
+
+  .badge {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 21px;
+    font-weight: 800;
+    border: 1px solid var(--line);
+  }
+
+  .badge.a { color: var(--gold); border-color: rgba(232, 196, 106, .6); }
+  .badge.b { color: var(--green); border-color: rgba(125, 214, 160, .55); }
+
+  .opt-title { font-size: 17px; font-weight: 700; }
+  .opt-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  button {
+    font: inherit;
+    font-size: 19px;
+    font-weight: 700;
+    padding: 14px 26px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, .09);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .12s ease, transform .05s ease;
+  }
+
+  button:hover:not(:disabled) { background: rgba(255, 255, 255, .18); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+
+  button.choose-a { border-color: var(--gold); color: var(--gold); }
+  button.choose-b { border-color: var(--green); color: var(--green); }
+  button.small { font-size: 13px; padding: 7px 13px; font-weight: 600; }
+
+  .key {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 0 6px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    font-size: 12px;
+    opacity: .65;
+    vertical-align: 2px;
+  }
+
+  .status { min-height: 24px; font-size: 15px; color: var(--gold); }
+  .status.err { color: #ff9f9f; }
+  .status .done { color: var(--green); font-weight: 700; }
+
+  .hint { font-size: 13px; color: var(--muted); }
+
+  .done-banner {
+    display: none;
+    border: 1px solid rgba(125, 214, 160, .5);
+    border-radius: 14px;
+    background: rgba(125, 214, 160, .1);
+    padding: 14px 18px;
+    font-size: 16px;
+    color: var(--green);
+  }
+
+  .done-banner.show { display: block; }
+
+  .empty {
+    display: none;
+    border: 1px dashed var(--line);
+    border-radius: 14px;
+    padding: 34px 20px;
+    text-align: center;
+    font-size: 17px;
+    color: var(--muted);
+  }
+
+  .empty.show { display: block; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>掼蛋 · 人类偏好标注</h1>
+  <span class="chip">对局 <b id="gameChip">—</b></span>
+  <span class="chip">级牌 <b id="levelChip">—</b></span>
+  <span class="chip">已标注 <b id="progressChip">0 / 0</b></span>
+  <span class="spacer"></span>
+  <span class="chip" id="outChip"></span>
+</header>
+
+<main>
+  <div class="progress" role="progressbar" aria-label="标注进度">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <div class="done-banner" id="doneBanner"></div>
+  <div class="empty" id="emptyBox">正在加载对局记录…</div>
+
+  <section class="panel hidden" id="decisionPanel">
+    <div class="decision-top">
+      <div class="step-title">第 <span class="step-num" id="stepNum">—</span> 步决策</div>
+      <div class="nav">
+        <button class="small" id="prevBtn" title="上一题（←）">← 上一题</button>
+        <button class="small" id="nextBtn" title="下一题（→）">下一题 →</button>
+        <button class="small" id="unlabeledBtn" title="跳到下一个还没标注的决策点">跳到未标注</button>
+      </div>
+    </div>
+
+    <div class="meta">
+      <span class="chip">玩家 <b id="playerChip">—</b></span>
+      <span class="chip">队伍 <b id="teamChip">—</b></span>
+      <span class="chip">手牌 <b id="handCountChip">—</b></span>
+      <span class="chip">合法出牌 <b id="legalChip">—</b></span>
+      <span class="chip hidden" id="finishedChip"></span>
+    </div>
+
+    <div class="table-line">
+      <span id="previousText">上一手：—</span>
+      <span class="cards" id="previousCards"></span>
+    </div>
+
+    <h2 class="section-title">该玩家当时的手牌（A = 真人实战里打出的那张/那组）</h2>
+    <div class="hand" id="hand"></div>
+  </section>
+
+  <div class="choices hidden" id="choices">
+    <div class="option a" id="optionA">
+      <div class="option-head">
+        <span class="badge a">A</span>
+        <div>
+          <div class="opt-title">真人实战动作</div>
+          <div class="opt-sub" id="optionASub">—</div>
+        </div>
+      </div>
+      <div class="cards" id="optionACards"></div>
+    </div>
+
+    <div class="option b" id="optionB">
+      <div class="option-head">
+        <span class="badge b">B</span>
+        <div>
+          <div class="opt-title">同局面的另一合法动作</div>
+          <div class="opt-sub" id="optionBSub">—</div>
+        </div>
+      </div>
+      <div class="cards" id="optionBCards"></div>
+    </div>
+  </div>
+
+  <div class="actions hidden" id="actions">
+    <button class="choose-a" id="chooseA">选 A · 真人更好<span class="key">A</span></button>
+    <button class="choose-b" id="chooseB">选 B · 替代更好<span class="key">B</span></button>
+    <button id="chooseTie">平局 / 差不多<span class="key">S</span></button>
+  </div>
+
+  <div class="status" id="status" role="status"></div>
+  <div class="hint">快捷键：A / B / S 提交选择，← / → 切换决策点。重复标注同一决策点会覆盖旧选择。</div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  const SUIT_SYMBOL = { S: "♠", H: "♥", C: "♣", D: "♦" };
+  const RED_SUITS = new Set(["H", "D"]);
+
+  const state = {
+    data: null,
+    items: [],
+    index: 0,
+    busy: false,
+  };
+
+  const el = {};
+
+  function $(id) { return document.getElementById(id); }
+
+  function cacheElements() {
+    [
+      "gameChip", "levelChip", "progressChip", "progressFill", "outChip",
+      "doneBanner", "emptyBox", "decisionPanel", "choices", "actions",
+      "stepNum", "prevBtn", "nextBtn", "unlabeledBtn", "playerChip",
+      "teamChip", "handCountChip", "legalChip", "finishedChip",
+      "previousText", "previousCards", "hand",
+      "optionA", "optionASub", "optionACards",
+      "optionB", "optionBSub", "optionBCards",
+      "chooseA", "chooseB", "chooseTie", "status",
+    ].forEach(function (id) { el[id] = $(id); });
+  }
+
+  function makeCard(card, level) {
+    const node = document.createElement("div");
+    node.className = "card";
+
+    let rankText;
+    let suitText;
+    let isRed = false;
+
+    if (typeof card === "string") {
+      node.classList.add("joker");
+      if (card === "BJ") {
+        rankText = "大王";
+        isRed = true;
+      } else if (card === "SJ") {
+        rankText = "小王";
+        isRed = true;
+      } else {
+        rankText = card;
+      }
+      suitText = "JOKER";
+    } else if (Array.isArray(card) && card.length >= 2) {
+      const suit = card[0];
+      const rank = card[1];
+      rankText = String(rank);
+      suitText = SUIT_SYMBOL[suit] || suit;
+      isRed = RED_SUITS.has(suit);
+    } else {
+      rankText = "?";
+      suitText = "";
+    }
+
+    if (isRed) node.classList.add("red");
+
+    const rankNode = document.createElement("span");
+    rankNode.className = "rank";
+    rankNode.textContent = rankText;
+
+    const suitNode = document.createElement("span");
+    suitNode.className = "suit";
+    suitNode.textContent = suitText;
+
+    node.appendChild(rankNode);
+    node.appendChild(suitNode);
+
+    // 逢人配：红桃级牌
+    if (
+      level != null && Array.isArray(card) && card.length >= 2 &&
+      card[0] === "H" && String(card[1]) === String(level)
+    ) {
+      const wild = document.createElement("span");
+      wild.className = "wild";
+      wild.textContent = "配";
+      wild.title = "逢人配（万能牌）";
+      node.appendChild(wild);
+    }
+
+    return node;
+  }
+
+  function fillCards(container, cards, level, mini) {
+    container.textContent = "";
+    if (!cards || cards.length === 0) {
+      const tag = document.createElement("span");
+      tag.className = "pass-tag";
+      tag.textContent = "过牌";
+      container.appendChild(tag);
+      return;
+    }
+    cards.forEach(function (card) {
+      const node = makeCard(card, level);
+      if (mini) node.classList.add("mini");
+      container.appendChild(node);
+    });
+  }
+
+  function currentItem() {
+    return state.items[state.index] || null;
+  }
+
+  function firstUnlabeledFrom(start) {
+    for (let i = start; i < state.items.length; i += 1) {
+      if (!state.items[i].label) return i;
+    }
+    for (let i = 0; i < start; i += 1) {
+      if (!state.items[i].label) return i;
+    }
+    return -1;
+  }
+
+  function showEmpty(message) {
+    el.decisionPanel.classList.add("hidden");
+    el.choices.classList.add("hidden");
+    el.actions.classList.add("hidden");
+    el.emptyBox.textContent = message;
+    el.emptyBox.classList.add("show");
+  }
+
+  function setStatus(text, isError) {
+    el.status.textContent = text;
+    el.status.classList.toggle("err", Boolean(isError));
+  }
+
+  function renderProgress() {
+    const total = state.items.length;
+    const labeled = state.items.filter(function (item) { return item.label; }).length;
+    el.progressChip.textContent = labeled + " / " + total;
+    el.progressFill.style.width = total ? (labeled / total * 100).toFixed(1) + "%" : "0%";
+
+    if (total > 0 && labeled === total) {
+      el.doneBanner.textContent =
+        "全部 " + total + " 个决策点已标注完成！可以继续回看或修改，记录已写入 " +
+        (state.data.out || "preferences.jsonl");
+      el.doneBanner.classList.add("show");
+    } else {
+      el.doneBanner.classList.remove("show");
+    }
+  }
+
+  function render() {
+    const item = currentItem();
+    renderProgress();
+
+    if (!item) {
+      showEmpty(state.items.length === 0
+        ? "这份对局记录里没有可标注的决策点（可能只有 game_start / game_end，或每步都没有替代动作）。"
+        : "已经到底了。");
+      return;
+    }
+
+    el.emptyBox.classList.remove("show");
+    el.decisionPanel.classList.remove("hidden");
+    el.choices.classList.remove("hidden");
+    el.actions.classList.remove("hidden");
+
+    el.stepNum.textContent = String(item.step);
+    el.playerChip.textContent = String(item.player);
+    el.teamChip.textContent = item.team ? item.team + " 队" : "—";
+    el.handCountChip.textContent = item.hand_count + " 张";
+    el.legalChip.textContent = item.legal_play_count + " 种";
+
+    if (item.finished_players && item.finished_players.length) {
+      el.finishedChip.textContent = "已出完：玩家 " + item.finished_players.join("、");
+      el.finishedChip.classList.remove("hidden");
+    } else {
+      el.finishedChip.classList.add("hidden");
+    }
+
+    if (!item.previous_play || item.previous_play.length === 0) {
+      el.previousText.textContent = "上一手：无人领出，自由出牌";
+      el.previousCards.textContent = "";
+    } else {
+      el.previousText.textContent =
+        "上一手：玩家 " + (item.previous_player == null ? "?" : item.previous_player) + " 打出";
+      fillCards(el.previousCards, item.previous_play, item.level, true);
+    }
+
+    fillCards(el.hand, item.hand, item.level, false);
+
+    const aCount = item.a_is_pass ? "过牌" : item.a.length + " 张";
+    const bCount = item.b_is_pass ? "过牌" : item.b.length + " 张";
+    el.optionASub.textContent = item.a_label + " · " + aCount;
+    el.optionBSub.textContent = item.b_label + " · " + bCount;
+    fillCards(el.optionACards, item.a, item.level, false);
+    fillCards(el.optionBCards, item.b, item.level, false);
+
+    el.optionA.classList.toggle("chosen", item.label === "A");
+    el.optionB.classList.toggle("chosen", item.label === "B");
+
+    if (item.label === "tie") {
+      setStatus("第 " + item.step + " 步已标注为「平局 / 差不多」，可重新选择覆盖。");
+    } else if (item.label) {
+      setStatus("第 " + item.step + " 步已标注为 " + item.label + "，可重新选择覆盖。");
+    } else {
+      setStatus("");
+    }
+
+    el.prevBtn.disabled = state.index <= 0;
+    el.nextBtn.disabled = state.index >= state.items.length - 1;
+    el.unlabeledBtn.disabled = state.items.every(function (row) { return row.label; });
+  }
+
+  function navigate(delta) {
+    const next = state.index + delta;
+    if (next < 0 || next >= state.items.length) return;
+    state.index = next;
+    render();
+  }
+
+  function jumpToUnlabeled() {
+    const found = firstUnlabeledFrom(state.index + 1);
+    if (found >= 0) {
+      state.index = found;
+      render();
+    }
+  }
+
+  function setBusy(busy) {
+    state.busy = busy;
+    el.chooseA.disabled = busy;
+    el.chooseB.disabled = busy;
+    el.chooseTie.disabled = busy;
+  }
+
+  async function submit(chosen) {
+    if (state.busy) return;
+    const item = currentItem();
+    if (!item || !state.data) return;
+
+    setBusy(true);
+    try {
+      const response = await fetch("/api/preference", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          game: state.data.game,
+          step: item.step,
+          chosen: chosen,
+          a: item.a,
+          b: item.b,
+        }),
+      });
+
+      let body = null;
+      try { body = await response.json(); } catch (err) { body = null; }
+
+      if (!response.ok || !body || body.ok !== true) {
+        const message = body && body.error ? body.error : "HTTP " + response.status;
+        throw new Error(message);
+      }
+
+      item.label = chosen;
+      const indexBefore = state.index;
+      state.index = firstUnlabeledFrom(indexBefore + 1);
+      if (state.index === -1) state.index = indexBefore;
+      render();
+
+      const chosenText = chosen === "tie" ? "平局 / 差不多" : chosen;
+      const labeled = state.items.filter(function (row) { return row.label; }).length;
+      setStatus(
+        "已记录：第 " + item.step + " 步 → " + chosenText +
+        "（进度 " + labeled + " / " + state.items.length + "）",
+        false
+      );
+    } catch (err) {
+      setStatus("提交失败：" + (err && err.message ? err.message : err), true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function load() {
+    showEmpty("正在加载对局记录…");
+    try {
+      const response = await fetch("/api/items");
+      let data = null;
+      try { data = await response.json(); } catch (err) { data = null; }
+      if (!response.ok || !data || !Array.isArray(data.items)) {
+        const message = data && data.error ? data.error : "HTTP " + response.status;
+        throw new Error(message);
+      }
+
+      state.data = data;
+      state.items = data.items;
+
+      el.gameChip.textContent = data.game;
+      el.levelChip.textContent = data.level == null ? "无级牌" : data.level;
+      el.outChip.textContent = "写入 " + data.out;
+      el.outChip.title = data.out;
+
+      const first = state.items.findIndex(function (item) { return !item.label; });
+      state.index = first >= 0 ? first : 0;
+      render();
+    } catch (err) {
+      showEmpty("加载失败：" + (err && err.message ? err.message : err));
+      setStatus("加载失败，请确认服务仍在运行后刷新页面。", true);
+    }
+  }
+
+  function onKeydown(event) {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const key = event.key;
+
+    if (key === "ArrowLeft") {
+      event.preventDefault();
+      navigate(-1);
+      return;
+    }
+    if (key === "ArrowRight") {
+      event.preventDefault();
+      navigate(1);
+      return;
+    }
+
+    const lower = key.toLowerCase();
+    if (lower === "a") {
+      event.preventDefault();
+      submit("A");
+    } else if (lower === "b") {
+      event.preventDefault();
+      submit("B");
+    } else if (lower === "s") {
+      event.preventDefault();
+      submit("tie");
+    }
+  }
+
+  function bind() {
+    el.chooseA.addEventListener("click", function () { submit("A"); });
+    el.chooseB.addEventListener("click", function () { submit("B"); });
+    el.chooseTie.addEventListener("click", function () { submit("tie"); });
+    el.prevBtn.addEventListener("click", function () { navigate(-1); });
+    el.nextBtn.addEventListener("click", function () { navigate(1); });
+    el.unlabeledBtn.addEventListener("click", jumpToUnlabeled);
+    document.addEventListener("keydown", onKeydown);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    cacheElements();
+    bind();
+    load();
+  });
+})();
+</script>
+</body>
+</html>
