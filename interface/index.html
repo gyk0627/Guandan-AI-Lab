@@ -120,22 +120,30 @@
   .card {
     width: 46px; height: 66px; border-radius: 7px;
     background: var(--card-bg); color: #17202a;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start;
+    padding: 5px 0 0 6px;
     cursor: pointer; position: relative;
     box-shadow: 0 2px 6px rgba(0,0,0,.35);
     transition: transform .08s ease, box-shadow .08s ease;
     font-variant-numeric: tabular-nums;
   }
-  .card .rank { font-size: 19px; font-weight: 700; line-height: 1; }
-  .card .suit { font-size: 17px; line-height: 1.15; }
+  /* 同点数的牌叠在一起：后面的牌往左压，露出前面那张的左侧一条
+     （留 28px：正好放得下「10」这种两位点数，再加左边距） */
+  .card.stack { margin-left: -18px; }
+  .card .rank { font-size: 19px; font-weight: 700; line-height: 1.05; }
+  .card .suit { font-size: 16px; line-height: 1; margin-top: 1px; }
   .card.red { color: var(--red); }
-  .card.joker .rank { font-size: 15px; }
-  .card:hover { transform: translateY(-4px); }
-  .card.selected { transform: translateY(-12px); box-shadow: 0 0 0 2px var(--gold), 0 6px 14px rgba(0,0,0,.45); }
+  .card.joker { align-items: center; justify-content: center; padding: 0; }
+  .card.joker .rank {
+    font-size: 13px; line-height: 1.1; letter-spacing: 1px; text-align: center;
+    writing-mode: vertical-rl;
+  }
+  .card:hover { transform: translateY(-4px); z-index: 3; }
+  .card.selected { transform: translateY(-12px); box-shadow: 0 0 0 2px var(--gold), 0 6px 14px rgba(0,0,0,.45); z-index: 3; }
   .card.dim { opacity: .3; cursor: default; }
   /* 逢人配角标：红桃级牌可以当任意牌 */
   .card .wild {
-    position: absolute; top: 2px; right: 2px;
+    position: absolute; bottom: 2px; left: 2px;
     background: #c1121f; color: #fff; font-size: 10px; font-weight: 700;
     width: 16px; height: 16px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -415,8 +423,14 @@ function render() {
 
   const handEl = document.getElementById("hand");
   handEl.innerHTML = "";
+  let lastRank = null;
   hand.forEach((text, index) => {
-    handEl.appendChild(cardEl(text, state.your_turn && !state.game_over, index));
+    const card = cardEl(text, state.your_turn && !state.game_over, index);
+    // 手牌已按点数排序：同点数的后面几张往左叠，桌面上就不至于铺得太长
+    const rank = parseCard(text).rank;
+    if (rank === lastRank) card.classList.add("stack");
+    lastRank = rank;
+    handEl.appendChild(card);
   });
 
   const statusEl = document.getElementById("status");

@@ -82,6 +82,9 @@ def test_index_page_is_served():
         assert "发送给作者" in html, "界面要有「发送给作者」按钮，点一下就能把记录发到作者邮箱"
         assert "发送这一局给作者" in html, "打完一局的全屏弹窗里要有醒目的大按钮"
         assert "对局结束" in html
+        # 同点数的牌要叠着显示，不然 27 张铺开太占地方
+        assert ".card.stack" in html
+        assert 'classList.add("stack")' in html
 
 
 def test_export_returns_the_latest_record():
