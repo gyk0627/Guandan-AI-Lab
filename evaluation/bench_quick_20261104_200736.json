@@ -1,0 +1,139 @@
+{
+  "schema": "gandan-benchmark/2",
+  "kind": "suite",
+  "preset": "quick",
+  "created": "2026-11-04 20:07:29",
+  "warmup": {
+    "cuda": true,
+    "seconds": 0.313
+  },
+  "host": {
+    "host": "Laptop",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "cpu_count": 18,
+    "python": "3.13.17",
+    "torch": "2.11.0+cu128",
+    "cuda_available": true,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  },
+  "config": {
+    "modules": [
+      "cpu",
+      "inference"
+    ],
+    "games": 20,
+    "pipe_games": 4,
+    "train_epochs": 1,
+    "inference_min_seconds": 0.4
+  },
+  "modules": {
+    "cpu": {
+      "games": 20,
+      "decisions": 1940,
+      "seconds": 3.5,
+      "games_per_second": 5.72,
+      "decisions_per_second": 554.5,
+      "module_seconds": 3.5
+    },
+    "inference": {
+      "rows": [
+        {
+          "batch_size": 1,
+          "inferences": 1050,
+          "seconds": 0.403,
+          "inferences_per_second": 2607.1,
+          "ms_per_batch": 0.38
+        },
+        {
+          "batch_size": 8,
+          "inferences": 8400,
+          "seconds": 0.402,
+          "inferences_per_second": 20905.6,
+          "ms_per_batch": 0.38
+        },
+        {
+          "batch_size": 16,
+          "inferences": 17920,
+          "seconds": 0.403,
+          "inferences_per_second": 44514.8,
+          "ms_per_batch": 0.36
+        },
+        {
+          "batch_size": 32,
+          "inferences": 34240,
+          "seconds": 0.4,
+          "inferences_per_second": 85503.9,
+          "ms_per_batch": 0.37
+        },
+        {
+          "batch_size": 64,
+          "inferences": 66560,
+          "seconds": 0.401,
+          "inferences_per_second": 166121.0,
+          "ms_per_batch": 0.39
+        },
+        {
+          "batch_size": 128,
+          "inferences": 135680,
+          "seconds": 0.402,
+          "inferences_per_second": 337120.3,
+          "ms_per_batch": 0.38
+        }
+      ],
+      "encode_state_ms": 0.031,
+      "encode_action_ms": 0.005,
+      "per_decision_prepare_ms": 0.14,
+      "module_seconds": 2.59
+    }
+  },
+  "resources": {
+    "cpu_avg": 23.9,
+    "free_mem_mb": 11159.1,
+    "gpu_avg": 20.0,
+    "gpu_peak": 61.0,
+    "gpu_mem_peak_mb": 1451.0,
+    "power_avg_w": 23.1,
+    "power_peak_w": 42.5,
+    "temp_peak_c": 54.0,
+    "gpu_clock_avg_mhz": 2418.0,
+    "gpu_clock_peak_mhz": 2962.0,
+    "per_core_avg": null,
+    "cores_busy_over_50pct": null,
+    "samples": 35,
+    "engine": {
+      "samples": 3,
+      "3d": {
+        "max": 91.5,
+        "p95": 91.5,
+        "mean": 35.6,
+        "over_80_pct": 33.3
+      },
+      "compute": {
+        "max": 0.0,
+        "p95": 0.0,
+        "mean": 0.0,
+        "over_80_pct": 0.0
+      },
+      "copy": {
+        "max": 0.4,
+        "p95": 0.4,
+        "mean": 0.3,
+        "over_80_pct": 0.0
+      },
+      "video": {
+        "max": 0.0,
+        "p95": 0.0,
+        "mean": 0.0,
+        "over_80_pct": 0.0
+      },
+      "other": {
+        "max": 0.0,
+        "p95": 0.0,
+        "mean": 0.0,
+        "over_80_pct": 0.0
+      }
+    }
+  },
+  "duration_seconds": 7.5
+}

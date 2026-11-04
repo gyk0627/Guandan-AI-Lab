@@ -34,6 +34,9 @@ def human_hours(hours):
 
 
 def main(argv=None):
+    print("[已合并] 这个脚本现在归到统一入口：python -m tools.benchmark run --preset standard")
+    print("          （旧命令仍可用；新报告格式见 tools/benchmark.py 顶部说明）")
+    print()
     parser = argparse.ArgumentParser(description="生成对局与导出的速度测试")
     parser.add_argument("--games", type=int, default=60, help="测多少局（默认 60）")
     parser.add_argument(

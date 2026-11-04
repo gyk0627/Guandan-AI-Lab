@@ -7,6 +7,57 @@
 
 ---
 
+## 2026-11-04（20:50）— 工具：性能测试收成一个入口（预设 / 对比 / v2 报告）
+
+> 目标（负责人）：把散在 `tools/` 下的测速脚本整合优化，
+> 别再让人记十几个命令、也别再出现"同一个指标两个脚本差 5%"。
+
+### 新增
+
+1. `tools/benchmark.py`：唯一性能测试入口，用法统一成 `python -m tools.benchmark <子命令>`。
+2. `run` 子命令：内置三档预设 `quick` / `standard` / `full`，外加 `custom`；
+   `--games`、`--pipe-games`、`--train-epochs`、`--out`、`--warmup-seconds` 可覆盖预设参数。
+3. `compare` 子命令：两份报告逐项对比，认 v1 / v2 两种格式；
+   只比两边都有的数字，吞吐类 ≥1.10 判「更快」、≤0.90 判「变慢」，其余「持平」（延迟类方向相反）；
+   `module_seconds` / `seconds` / `samples` / `games` / `decisions` 这类测量过程字段跳过。
+4. `list` 子命令：列出预设、子命令与报告目录。
+5. 统一报告：`evaluation/bench_<预设>_<时间>.json`，schema `gandan-benchmark/2`，
+   顶层 `schema / kind / preset / created / duration_seconds / warmup / host / config / modules / resources`；
+   所有预设共用同一套预热（0.3 秒以上，CUDA 上下文 / cublas 先热）。
+6. 委托子命令 `scaling` / `roofline` / `dataloading` / `batch`：转调旧脚本，旧实现不搬家。
+7. `tools/speed_test.py`、`tools/benchmark_throughput.py` 顶部加「[已合并]」提示，**行为保留**，旧命令仍可跑。
+8. `tests/test_benchmark_cli.py`：覆盖预设工作量递增、报告拍平、指标方向判定、对比判定、
+   v1/v2 报告兼容、`compare` 落盘、`list` 输出、`custom` 缺参数报错。
+
+### 预设
+
+| 预设 | 模块 | 对局数 | pipe 局数 | 训练轮数 | 推理每档 | 量级 |
+|---|---|---:|---:|---:|---:|---|
+| `quick` | cpu, inference | 20 | — | — | 0.4 秒 | 约 20 秒 |
+| `standard` | 五项全跑 | 40 | 12 | 1 | 1.0 秒 | 约 3 分钟 |
+| `full` | 五项全跑 | 100 | 30 | 2 | 2.0 秒 | 约 10 分钟 |
+
+### 实测
+
+- 2026-11-04 20:07 跑 `run --preset quick`（本机 RTX 5060 Laptop）：总耗时 **7.5 秒**；
+  CPU 模拟 **5.72 局/秒**（554.5 决策/秒）；推理 batch 1/8/16/32/64/128 =
+  2,607 / 20,906 / 44,515 / 85,504 / 166,121 / **337,120 次/秒**；
+  状态编码 0.031 ms + 每候选 0.005 ms；CPU 均值 23.9%、显存峰值 1,451 MB、
+  功耗均值 23.1 W、54℃、3D 引擎峰值 92%（均值 36%）。
+- 对比 v1 基线（同机，2026-11-03 23:22）：CPU **1.21×**、batch 1 **1.37×**、batch 128 **1.15×**。
+- 测试：**393 → 403**（新增 10 条），全量 **`403 passed in 26.02s`**，无 failed / skipped / xfailed。
+- 文档：`README.md` 第七节重写为「一条命令跑基准 / 对比 / 旧脚本仍可用 / 硬件结论」；
+  `docs/EXPERIMENTS.md` 新增 **E22 统一性能测试入口**。
+
+### 诚实边界
+
+- `quick` 只跑 CPU + 推理，**不覆盖训练 / 导出 / 端到端**；完整五项要跑 `standard` / `full`。
+- `compare` 只比字段名完全相同的项，旧报告缺字段就跳过；"没报变慢"不等于"所有指标都没变"。
+- `direction()` 现按 `LOWER_IS_BETTER` 正则判断方向，`inference.ms_per_batch`、`train.bc_seconds_per_epoch` 这类「单位夹在中间」的指标也能判对（修复前会被当成「仅参考」整行跳过）；对应测试已转正。
+- 旧脚本的实现没有删除，只是加了「[已合并]」提示；`scaling` 等委托子命令的报告仍是旧格式，不套 v2 外壳。
+
+---
+
 ## 2026-11-04（20:05）— 工具：人机对战打包成双击即玩的 exe（含图标、使用说明、发布 zip）
 
 > 目标（负责人 m02790）：弄不到服务器、也没时间，先把「能做的」做好——

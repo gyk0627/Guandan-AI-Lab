@@ -749,36 +749,90 @@ dist\GuandanAI-win64.zip          ← 8.9 MB，可以直接发给别人
 
 ---
 
-## 七、性能测试与硬件选型（2026-11-04 新增）
+## 七、性能测试与硬件选型（2026-11-04 更新：统一入口）
 
-一键脚本（仓库根目录，双击即可）：
+### 7.1 一条命令跑基准
 
-| 脚本 | 作用 |
-|---|---|
-| `run_speed_test.bat` | 生成对局 + 导出数据的速度，并换算成「1000 万局要多久」 |
-| `run_train_speed.bat` | **真跑** N 轮训练并逐轮计时（数据准备/GPU 计算/显存峰值拆分） |
-| `run_benchmark.bat` | 机器综合基准：CPU 模拟 / GPU 推理（batch 1–128）/ 训练 / 导出 / 端到端 |
+日常**只需要记一个入口**：`tools/benchmark.py`，用法统一成 `python -m tools.benchmark <子命令>`。
 
-`tools/` 下对应工具：
+```powershell
+cd C:\Users\qq165\Documents\deepseek-harness\default-workspace\GuanDan-AI-Lab
 
-| 工具 | 用途 |
-|---|---|
-| `benchmark_suite.py` | 五模块基准，输出 JSON，可 `--compare` 基线 |
-| `scaling_test.py` | 1/2/4/8/12/16 进程扩展性——**决定该买多少核** |
-| `speed_test.py` | 对局生成与导出吞吐 |
-| `train_speed.py` | 训练逐轮耗时与显存 |
-| `roofline_probe.py` | 算力 vs 显存带宽 vs kernel launch 开销的定量判断 |
-| `dataloading_test.py` | 数据准备并行化收益（等价 DataLoader workers） |
-| `gpu_probe.py` / `gpu_metrics.py` / `resource_sampler.py` | GPU 与整机资源采样（Windows + Linux） |
+# quick：约 20 秒，确认机器活着、GPU 能用（只跑 CPU 模拟 + 推理，不碰训练）
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark run --preset quick
 
-**已得到的结论**（详见 [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) E16–E19）：
+# standard：约 3 分钟，日常基准（CPU / 推理 / 训练 / 导出 / 端到端 五项全跑）
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark run --preset standard
+
+# full：约 10 分钟，样本更大，给买机器 / 租机器做选型用
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark run --preset full
+```
+
+| 预设 | 跑哪些模块 | 对局数 | pipe 局数 | 训练轮数 | 推理每档时长 | 量级 |
+|---|---|---|---:|---:|---:|---|
+| `quick` | `cpu`、`inference` | 20 | — | — | 0.4 秒 | 约 20 秒 |
+| `standard` | 五项全跑 | 40 | 12 | 1 | 1.0 秒 | 约 3 分钟 |
+| `full` | 五项全跑 | 100 | 30 | 2 | 2.0 秒 | 约 10 分钟 |
+
+要自己配：`--preset custom --modules cpu,inference`（`custom` 必须给 `--modules`），
+再按需加 `--games`、`--pipe-games`、`--train-epochs`、`--out`、`--warmup-seconds`。
+`python -m tools.benchmark list` 能看到全部预设和子命令。
+
+**报告**默认写到 `evaluation/bench_<预设>_<时间>.json`
+（例：`evaluation/bench_quick_20261104_200736.json`），schema 固定 `gandan-benchmark/2`。
+顶层字段：`schema / kind / preset / created / duration_seconds / warmup / host / config / modules / resources`
+（`compare` 也认 v1 老格式，以及可选的 `metrics`）。
+`warmup` 是统一预热：先把 CUDA 上下文、cublas 句柄热起来再计时，所以换机器、隔天重跑还能放一张表里比。
+
+### 7.2 跟历史基线对比
+
+```powershell
+# 自动找仓库里的 v1 基线（evaluation/benchmark_v1_baseline.json）
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark run --preset quick --compare auto
+
+# 指定任意一份基线报告
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark run --preset standard --compare evaluation\bench_quick_20261104_200736.json
+
+# 两份已经跑完的报告，单独再比一次
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark compare evaluation\bench_quick_20261104_200736.json evaluation\benchmark_v1_baseline.json
+```
+
+对比规则（写在代码里，不是拍脑袋）：
+
+- 只比两份报告**都有**的数字，缺的项直接跳过；
+- 吞吐类：当前 / 基线 **≥ 1.10 判「更快」**、**≤ 0.90 判「变慢」**，中间算「持平」；延迟类反过来（越小越好）；
+- `module_seconds`、`seconds`、`samples`、`games`、`decisions` 这类"测了多久 / 测了多少"的字段**不参与对比**；
+- **±10% 以内不当结论**：温度、后台程序、跑的顺序都能带来这么大波动。
+
+### 7.3 旧的测速脚本还能用
+
+`tools/speed_test.py`、`tools/benchmark_throughput.py` 开头已加「[已合并]」提示，实现保留，旧命令照常能跑；
+`benchmark_suite.py`、`scaling_test.py`、`roofline_probe.py`、`dataloading_test.py` 也都还在。
+日常不用挨个记，统一走主入口的委托子命令（转调旧脚本）：
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark scaling      # 多进程扩展性：1/2/4/8/16 进程
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark roofline     # 算力 / 带宽上限
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark dataloading  # 组批并行收益
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark batch        # batch 大小消融
+```
+
+仓库根目录的 `run_speed_test.bat`、`run_train_speed.bat`、`run_benchmark.bat` 也还能双击。
+
+### 7.4 已得到的硬件结论
 
 - 本机并行上限 **2.0–2.3×**（4~8 进程见顶），瓶颈是平台不是 GPU；
 - 训练步只用到峰值算力 **1.55%**、带宽 **0.40%**，瓶颈是**每步固定开销（kernel launch）**；
-- 因此"先加 batch / 上 CUDA Graphs"比"买更快的卡"更划算；显存只需 0.34 GB，24GB 足够。
+- 因此"先加 batch / 上 CUDA Graphs"比"买更快的卡"更划算；
+- 训练显存实测 **0.34 GB**，**4090 24GB 足够**（当前模型用不满，多进程推理也够）。
 
 > ⚠️ GPU 占用率要用**任务管理器口径**（Windows GPU Engine 计数器）；
 > `nvidia-smi` 的 `utilization.gpu` 在 Windows/WDDM 上会低估（实测同一段训练：45% vs 96%）。
+
+2026-11-04 20:07 的 quick 实测（本机 RTX 5060 Laptop）：CPU 模拟 **5.72 局/秒**（554.5 决策/秒）、
+推理 batch 128 到 **337,120 次/秒**、显存峰值 **1,451 MB**、功耗均值 23.1 W、54℃；
+对比 v1 基线：CPU **1.21×**、batch 1 **1.37×**、batch 128 **1.15×**。
+完整数字和局限见 [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) E22。
 
 ## 八、如何复现「今天这套实验」
 

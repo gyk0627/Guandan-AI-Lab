@@ -979,6 +979,87 @@ Windows PowerShell 5.1 按 ANSI 读 UTF-8，整个文件的中文变乱码、
 
 ---
 
+## E22 · 统一性能测试入口：9 个测速脚本收成一条命令（2026-11-04）
+
+**动机**：性能测试原先散在 `tools/` 下 9 个脚本里——`benchmark_suite.py`（五项基准）、
+`benchmark_throughput.py`（吞吐）、`speed_test.py`（生成 / 导出）、`train_speed.py`（训练逐轮）、
+`scaling_test.py`（多进程扩展性）、`roofline_probe.py`（算力 / 带宽）、`dataloading_test.py`（组批）、
+`batch_ablation.py`（batch 消融）、`gpu_probe.py`（GPU 信息），另有 `gpu_metrics.py` / `resource_sampler.py`
+两个采样模块。问题是**口径不一**：预热多久、每个 batch 测几秒、资源采样窗口、报告字段各写各的，
+同一个指标换个脚本能差 5–10%，两台机器或两次运行没法直接比；写论文时也说不清"这个数字用的是哪套条件"。
+
+**做法**
+
+1. 新增 `tools/benchmark.py` 作为唯一入口：`python -m tools.benchmark <子命令>`。
+   常用流程收成 `run` / `compare` / `list` 三个子命令，其余旧脚本用委托子命令转调，**实现不搬家**。
+2. `run` 内置三档预设 + `custom`，所有预设共用同一套预热
+   （`warmup()`：CUDA 上下文、cublas、显存池先热 0.3 秒以上，再开始计时）。
+3. 报告统一写到 `evaluation/bench_<预设>_<时间>.json`，schema 固定 `gandan-benchmark/2`；
+   顶层字段：`schema / kind / preset / created / duration_seconds / warmup / host / config / modules / resources`。
+4. `compare` 统一判定规则：只比两份报告**都有**的数字；吞吐类 ≥1.10 判「更快」、≤0.90 判「变慢」，
+   其余「持平」（延迟类方向相反）；`module_seconds` / `seconds` / `samples` / `games` / `decisions`
+   这类测量过程字段不参与对比。同时兼容没有 `schema` 的 v1 老报告。
+5. 旧脚本 `tools/speed_test.py`、`tools/benchmark_throughput.py` 顶部加「[已合并]」提示，
+   行为原样保留；`benchmark_suite.py` 等继续由委托子命令调用。
+6. 新增 `tests/test_benchmark_cli.py`，覆盖预设工作量递增、报告拍平、指标方向判定、
+   对比判定（更快 / 变慢 / 持平）、v1/v2 报告兼容、`list` 输出与 `custom` 缺参数报错。
+
+**预设**（数字来自 `tools/benchmark.py` 的 `PRESETS`）
+
+| 预设 | 模块 | 对局数 | pipe 局数 | 训练轮数 | 推理每档时长 | 说明 |
+|---|---|---:|---:|---:|---:|---|
+| `quick` | cpu, inference | 20 | — | — | 0.4 秒 | 约 20 秒，确认机器活着、GPU 能用 |
+| `standard` | 五项全跑 | 40 | 12 | 1 | 1.0 秒 | 约 3 分钟，日常基准 |
+| `full` | 五项全跑 | 100 | 30 | 2 | 2.0 秒 | 约 10 分钟，给买机器 / 租机器用 |
+
+自定义：`--preset custom --modules cpu,inference`，其余参数可用
+`--games` / `--pipe-games` / `--train-epochs` / `--out` / `--warmup-seconds` 覆盖。
+
+**验证命令（2026-11-04 20:07，本机 RTX 5060 Laptop / 18 逻辑核 / CUDA 12.8）**
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m tools.benchmark run --preset quick
+```
+
+报告 `evaluation/bench_quick_20261104_200736.json`，总耗时 **7.5 秒**（预热 0.313 秒，CUDA 可用）。
+
+| 指标 | 实测 |
+|---|---:|
+| CPU 模拟（20 局 / 1,940 决策 / 3.5 秒） | **5.72 局/秒**、**554.5 决策/秒** |
+| 推理 batch 1 / 8 / 16 / 32 / 64 / 128（次/秒） | 2,607 / 20,906 / 44,515 / 85,504 / 166,121 / **337,120** |
+| 状态编码 / 每候选动作编码 | 0.031 ms / 0.005 ms |
+| 每次决策准备（编码 + 组 batch） | 0.14 ms |
+| CPU 均值 / 显存峰值 | 23.9% / **1,451 MB** |
+| 功耗均值 / 温度峰值 | 23.1 W / 54℃ |
+| 3D 引擎峰值（任务管理器口径，均值） | **92%**（36%） |
+
+**对比 v1 基线**（`evaluation/benchmark_v1_baseline.json`，2026-11-03 23:22，同机；
+命令 `run --preset quick --compare auto`）：
+
+| 指标 | v1 基线 | 本次 | 倍数 | 判定 |
+|---|---:|---:|---:|---|
+| CPU 局/秒 | 4.73 | 5.72 | **1.21×** | 更快 |
+| batch 1 推理（次/秒） | 1,897.7 | 2,607.1 | **1.37×** | 更快 |
+| batch 128 推理（次/秒） | 293,644.7 | 337,120.3 | **1.15×** | 更快 |
+
+**结论**：统一入口把"机器活着没 / 比上次快还是慢"压到一条命令、20 秒内回答；
+v2 报告因为预热、采样窗口、字段一致，比 v1 时期更适合跨机器比较。
+本次 quick 相对 v1 快 15–37%，但两次运行隔了一天、机器状态不同，
+**只能当"没有退化"的证据，不能当优化成果**。
+
+**局限**
+
+1. `quick` 只跑 CPU + 推理，**不覆盖训练 / 导出 / 端到端**；要看完整五项得跑 `standard` / `full`。
+2. 资源采样（CPU% / 功耗 / 温度 / 3D 引擎）仍受后台程序、室温、电源策略影响；
+   按判定规则，±10% 以内的差异一律写「持平」，不当结论。
+3. `quick` 的推理每档只测 0.4 秒（batch 1 约 1,050 次），是短窗口；
+   更稳的数字看 `standard`（每档 1.0 秒）或 `full`（每档 2.0 秒）。v1 基线是每档 1.0 秒，两次口径不完全一样。
+4. `compare` 只比字段名完全相同的项；旧报告缺字段就直接跳过，所以"没报变慢"不等于"所有指标都没变"。
+5. 委托子命令 `scaling` / `roofline` / `dataloading` / `batch` 只是转调旧脚本，报告格式仍是旧的（没有 v2 外壳），
+   不经过 `run` 的预设与预热。
+
+---
+
 ## 论文素材清单（对应到章节）
 
 > 论文定位：**不完全信息博弈 + 强化学习**，方法核心 **Soft-DMC + RLHF 策略校准**；
@@ -992,7 +1073,7 @@ Windows PowerShell 5.1 按 ANSI 读 UTF-8，整个文件的中文变乱码、
 | §6 硬价值 + 搜索（负结果） | E05 | 51.50% → 26.00%；对照组 top_k=1 逐局复现基线 |
 | §6 指标批判（全局 AUC ≠ 决策可用） | E13 | 全局 AUC 0.700，但决策内偏好仅 **28.81%**（随机 20%，策略网络对照 59.06%）；二选一 55.14%（随机 50%） |
 | §7 Soft-DMC（软采样已实现） | — | `players/sampling.py`：温度 softmax + ε-greedy |
-| §9 算力刻画与选型 | E01、E08、E16、E17 | 4 进程 3.04×；本机并行上限 2.0–2.3×（瓶颈是平台不是 GPU）；GuanDan Benchmark v1 基准 |
+| §9 算力刻画与选型 | E01、E08、E16、E17、E22 | 4 进程 3.04×；本机并行上限 2.0–2.3×（瓶颈是平台不是 GPU）；GuanDan Benchmark v1 / v2 基准 |
 | §10 相关工作 | [RELATED_WORK.md](RELATED_WORK.md) | 四条脉络：PIMC/深度 MCTS、DMC、掼蛋与斗地主基准、RLHF 校准 |
 
 **尚未实现、须在论文里明确标注为"设计"的部分**：

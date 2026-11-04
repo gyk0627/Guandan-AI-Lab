@@ -189,6 +189,9 @@ def estimate(games_per_second, decisions_per_game=100, bytes_per_decision=700):
 
 
 def main(argv=None):
+    print("[已合并] 这个脚本现在归到统一入口：python -m tools.benchmark run --preset standard")
+    print("          （旧命令仍可用；新报告格式见 tools/benchmark.py 顶部说明）")
+    print()
     parser = argparse.ArgumentParser(description="吞吐量基准")
     parser.add_argument("--games", type=int, default=10, help="每个 CPU 基准跑几局")
     parser.add_argument("--selfplay-games", type=int, default=5)
