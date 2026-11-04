@@ -61,7 +61,31 @@
 
 窗口是进程内嵌的 WebView2 控件（Win11 自带；Win10 一般随 Edge 装好），不是外部浏览器——所以即使 Windows 账户是管理员权限也不会白屏。万一系统缺 WebView2，程序会提示一句并自动改用默认浏览器打开。包里是启发式 AI。
 
-对局记录默认只存本地 `replay/`。如果想让别人的对局自动回传，把包里的 `upload.json.example` 改名为 `upload.json` 并填上收集地址，接收端用 `python -m tools.collect_server`（见 [docs/USAGE.md](docs/USAGE.md#收集别人的对局记录)）。
+对局记录默认只存本地 `replay/`。想收集别人的对局，先决定用哪种打包方式：
+
+**模式 A：包里配好回传地址（朋友零操作）**
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe `
+    --upload-url http://你的电脑IP:8790/upload --token guandan-local
+```
+
+朋友解压、双击就能玩，每局打完自动传回；传不上去会先存本地，下次启动接着传，
+不用教他改任何文件。
+
+**模式 B：不配地址（朋友点「导出对局」发文件）**
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe
+```
+
+发布包里只有 `upload.json.example`。朋友打完（打一半也行）点窗口右上角「导出对局」，
+文件会存到他的「下载」文件夹（文件名以 `human_` 开头），让他把这个文件发给你。
+
+**接收方先开接收端**：双击仓库根目录的 `start_collector.bat`（监听 8790、口令 `guandan-local`、
+文件存 `collected\`），窗口别关；也可以手动跑
+`python -m tools.collect_server --dir collected --port 8790 --token guandan-local`。
+完整步骤和 `upload.json` 格式见 [docs/USAGE.md](docs/USAGE.md#免安装-exe)。
 
 ### 方式二：从源码运行
 

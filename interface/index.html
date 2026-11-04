@@ -175,6 +175,7 @@
     <option>6</option><option>7</option><option>8</option><option>9</option>
     <option>10</option><option>J</option><option>Q</option><option>K</option><option>A</option>
   </select>
+  <button id="exportBtn" title="把这一局的记录保存到电脑，可以发给组织者">导出对局</button>
   <button id="newBtn" class="primary">新的一局</button>
 </header>
 
@@ -490,6 +491,25 @@ async function newGame() {
 
 document.getElementById("newBtn").onclick = newGame;
 document.getElementById("againBtn").onclick = newGame;
+
+document.getElementById("exportBtn").onclick = async () => {
+  // 由服务端直接存到「下载」文件夹：窗口版不会弹下载框，回一句路径最直观
+  const button = document.getElementById("exportBtn");
+  const statusEl = document.getElementById("status");
+  button.disabled = true;
+  try {
+    const result = await api("/api/export", {});
+    statusEl.className = "status" + (result.error ? " err" : "");
+    statusEl.textContent = result.saved
+      ? `这一局的记录已存到：${result.saved}`
+      : result.error || "导出失败";
+  } catch (error) {
+    statusEl.className = "status err";
+    statusEl.textContent = `导出失败：${error}`;
+  } finally {
+    button.disabled = false;
+  }
+};
 
 api("/api/state").then((next) => applyState(next));
 </script>

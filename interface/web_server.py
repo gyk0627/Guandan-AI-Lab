@@ -18,7 +18,9 @@
 
 import argparse
 import json
+import os
 import random
+import shutil
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -323,17 +325,20 @@ class Handler(BaseHTTPRequestHandler):
         pass  # 控制台保持干净
 
     # ---------------------------------------------------------------- 工具
-    def _send(self, status, payload, content_type="application/json"):
-        body = (
-            payload.encode("utf-8")
-            if isinstance(payload, str)
-            else json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        )
+    def _send(self, status, payload, content_type="application/json", extra_headers=None):
+        if isinstance(payload, (bytes, bytearray)):
+            body = bytes(payload)
+        elif isinstance(payload, str):
+            body = payload.encode("utf-8")
+        else:
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        for name, value in (extra_headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(body)
 
@@ -346,6 +351,84 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
     # ---------------------------------------------------------------- 路由
+    def _latest_log(self):
+        """最近一局有内容的记录文件；没有就返回 None。"""
+        candidates = []
+        session = self.session
+        current = getattr(session, "log_path", None) if session is not None else None
+        if current:
+            path = Path(current)
+            if path.exists() and path.stat().st_size > 200:
+                candidates.append(path)
+
+        log_dir = type(self).log_dir
+        if log_dir is not None:
+            folder = Path(log_dir)
+            if folder.exists():
+                candidates.extend(
+                    sorted(folder.glob("human_*.jsonl"), key=lambda item: item.stat().st_mtime, reverse=True)
+                )
+
+        for path in candidates:
+            try:
+                if path.stat().st_size >= 200:  # 空壳记录没有导出的价值
+                    return path
+            except OSError:
+                continue
+        return None
+
+    def _serve_latest_log(self):
+        """把最近一局的记录当附件发出去（浏览器直接下载）。"""
+        path = self._latest_log()
+        if path is None:
+            self._send(404, {"error": "还没有可导出的对局记录"})
+            return
+
+        try:
+            body = path.read_bytes()
+        except OSError as error:
+            self._send(500, {"error": f"读不到对局记录：{error}"})
+            return
+
+        self._send(
+            200,
+            body,
+            "application/x-ndjson",
+            {"Content-Disposition": f'attachment; filename="{path.name}"'},
+        )
+
+    def _save_latest_log(self):
+        """把最近一局复制到「下载」文件夹，返回保存路径。
+
+        不依赖浏览器的下载行为——WebView2 窗口里点按钮时，浏览器不一定给任何提示，
+        玩家会以为没反应；这里直接落盘并把路径回给页面显示。
+        """
+        path = self._latest_log()
+        if path is None:
+            self._send(404, {"error": "还没有可导出的对局记录"})
+            return
+
+        target_dir = Path(os.environ.get("GUANDAN_EXPORT_DIR") or (Path.home() / "Downloads"))
+        try:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target = target_dir / path.name
+            shutil.copyfile(path, target)
+        except OSError:
+            # 没有「下载」文件夹（或没权限）就退回日志目录，至少文件还在
+            target = path
+            target_dir = path.parent
+
+        self._send(
+            200,
+            {
+                "saved": str(target),
+                "folder": str(target_dir),
+                "name": target.name,
+                "bytes": target.stat().st_size,
+            },
+        )
+
+
     def do_GET(self):
         if self.path in ("/", "/index.html"):
             try:
@@ -374,6 +457,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, {"plays": self.session.legal_plays()})
             return
 
+        if self.path == "/api/export":
+            self._serve_latest_log()
+            return
+
         self._send(404, {"error": "未知路径"})
 
     def do_POST(self):
@@ -381,6 +468,12 @@ class Handler(BaseHTTPRequestHandler):
             payload = self._read_json()
         except (json.JSONDecodeError, UnicodeDecodeError):
             self._send(400, {"error": "请求体不是合法 JSON"})
+            return
+
+        if self.path == "/api/export":
+            # 窗口版不弹下载框，干脆由服务端直接存到「下载」文件夹再回报路径
+            with self.lock:
+                self._save_latest_log()
             return
 
         with self.lock:

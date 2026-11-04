@@ -73,6 +73,35 @@ python -m venv .venv
 产物：`dist\GuandanAI\`（程序文件夹）、`dist\GuandanAI-win64.zip`（发布包，约 9.3 MB）。
 exe 内是启发式 AI；神经网络策略需要 PyTorch，不打包。
 
+**打包时决定「朋友怎么把记录给你」**
+
+- 配好回传地址（推荐，朋友零操作）：
+
+  ```powershell
+  & .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe `
+      --upload-url http://你的电脑IP:8790/upload --token guandan-local
+  ```
+
+  发布包里会直接带 `upload.json`，朋友解压双击就能玩，每局打完自动上传，不用改任何文件。
+  `--token` 省略时默认 `guandan-local`，要和接收端一致；地址必须以 `http://` 或 `https://` 开头。
+
+- 不配地址（离线版）：
+
+  ```powershell
+  & .\.venv\Scripts\python.exe -X utf8 -m tools.package_exe
+  ```
+
+  包里只有 `upload.json.example`。朋友打完（打一半也行）点窗口右上角「导出对局」，
+  最新一局的 `human_*.jsonl` 会存到他的「下载」文件夹，让他把这个文件发给你。
+
+**接收方先开接收端**：双击仓库根目录的 `start_collector.bat`，它等价于：
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 -m tools.collect_server --dir collected --port 8790 --token guandan-local
+```
+
+窗口保持开着（可以最小化，但别关），收到的文件存到 `collected\`。
+
 打包版启动后会打开一个**内嵌 WebView2 的原生窗口**（`interface\window_host\GuandanWindow.exe`，
 一个几十 KB 的 C# 外壳 + 三个 DLL，一起打进包里）。它不经过浏览器的启动策略，
 所以即便 Windows 账户是管理员权限也不会白屏；关掉窗口进程就退出。
@@ -91,27 +120,37 @@ exe 内是启发式 AI；神经网络策略需要 PyTorch，不打包。
 
 ### 收集别人的对局记录
 
-exe 默认只把记录存在本地 `replay/`。想让别人打完自动传回来，分两步：
+按「朋友要不要动手」分两种方式：
 
-1. 找一台机器起接收端（不需要公网域名，局域网也行）：
+**方式一：自动回传（推荐，朋友零操作）**
 
-   ```powershell
-   & .\.venv\Scripts\python.exe -X utf8 -m tools.collect_server --dir collected --port 8790 --token 换成一串口令
-   ```
+1. 接收方双击 `start_collector.bat`（端口 8790、口令 `guandan-local`、文件存 `collected\`），窗口别关。
+2. 打包时带 `--upload-url http://接收端IP:8790/upload`，`--token` 与接收端一致
+   （`start_collector.bat` 用的是 `guandan-local`）。
+3. 把 zip 发给朋友：解压、双击、每局自动上传。断网会先存本地，下次启动按 sha256 去重补传；
+   状态在 `upload_state.json`。
 
-   收到的文件按 `<sha16>_<原名>.jsonl` 存盘，并追加 `index.jsonl`；重复上传会被挡掉，
-   `GET /api/stats` 能看已收多少局。
+**方式二：朋友点「导出对局」发文件**
 
-2. 在 exe 所在文件夹放 `upload.json`（发布包里带 `upload.json.example`）：
+1. 打包时不带 `--upload-url`，发布包里只有 `upload.json.example`。
+2. 朋友打完（打一半也行）点右上角「导出对局」，文件存到「下载」文件夹（文件名以 `human_` 开头）。
+3. 朋友把文件发给你，直接放进 `collected\` 或另存即可。
 
-   ```json
-   { "url": "http://接收端地址:8790/upload", "token": "同一串口令" }
-   ```
+接收端细节：
 
-   exe 每局结束自动 POST；断网就先存本地，下次启动按 sha256 去重补传。
-   状态在 `upload_state.json`；没有 `upload.json` 就完全离线。
+- 收到的文件按 `<sha16>_<原名>.jsonl` 存盘，并追加 `index.jsonl`；重复上传会被挡掉，
+  `GET /api/stats` 能看已收多少局。
+- 不想重新打包时，也可以手动在 exe 所在文件夹放 `upload.json`（内容格式）：
 
-公网部署时记得设 `--token`，并放到 Nginx / HTTPS 后面。
+  ```json
+  { "url": "http://接收端地址:8790/upload", "token": "同一串口令" }
+  ```
+
+  没有 `upload.json` 就完全离线。
+- 公网部署时记得把 `--token` 换成自己的口令，并放到 Nginx / HTTPS 后面。
+
+网页版同样支持「导出对局」：`GET /api/export` 把当前最新一局 `human_*.jsonl` 当附件返回
+（优先正在打的这一局，打一半也能导）；还没有记录时返回 404「还没有可导出的对局记录」。
 
 ## 5. 数据管线
 

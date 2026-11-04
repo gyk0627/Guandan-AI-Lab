@@ -2,6 +2,11 @@
 
 用法（仓库根目录）：
     python -m tools.package_exe
+    python -m tools.package_exe --upload-url https://example.com/upload --token mytoken
+
+给了 --upload-url 时，发布包里会预先写好自己的 upload.json：
+朋友拿到后解压、双击就能玩，每局自动回传，**不需要改任何文件**。
+不给的话发布包保持离线，朋友打完后点界面上的「导出对局」把文件发回来。
 
 产物：
     dist/GuandanAI/GuandanAI.exe        双击就能玩
@@ -10,6 +15,7 @@
 """
 
 import argparse
+import json
 import shutil
 import sys
 import zipfile
@@ -20,7 +26,7 @@ from tools.build_exe import build
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DIST = REPO_ROOT / "dist"
 
-README = """掼蛋人机对战 —— 使用说明
+README_HEAD = """掼蛋人机对战 —— 使用说明
 ==============================
 
 一、怎么开始
@@ -51,14 +57,25 @@ README = """掼蛋人机对战 —— 使用说明
   在实验室里，它和神经网络版本打成 53 : 47 左右，属于同一档次。
 
 五、对局记录
-  每局都会自动存一份到 replay 文件夹，可以用来看回放、复盘。
+  每局都会自动存一份到 replay 文件夹。
+"""
 
-六、把对局记录传回来（可选）
-  默认只在你自己电脑上存着，不会上传。
-  想让它自动传回：把 upload.json.example 改名成 upload.json，
-  把里面的地址和口令换成收集方给的，再启动程序就行。
-  传不上去也没关系，会先存在本地，下次启动接着传。
+EXPORT_HINT = """
+六、把记录发回来（一步）
+  打完一局，点窗口右上角的「导出对局」按钮，
+  文件会存到你的「下载」文件夹（文件名以 human_ 开头）。
+  把这个文件发给组织者就行，别的都不用管。
+  这个按钮随时可以点，打一半也能导出。
+"""
 
+UPLOAD_HINT = """
+六、记录会自动传回来（无需操作）
+  这个版本已经配好回传地址，每打完一局会自动上传，你什么都不用做。
+  传不上去也没关系：会先存在本地，下次启动程序时接着传。
+  如果一直传不上去，也可以点右上角「导出对局」，把下载的文件发给组织者。
+"""
+
+README_TAIL = """
 七、常见问题
   - 提示「Windows 已保护你的电脑」：点「更多信息」→「仍要运行」
   - 端口被占用：程序会自动换一个端口，看窗口里打印的地址
@@ -67,24 +84,54 @@ README = """掼蛋人机对战 —— 使用说明
   - 不想上传：GuandanAI.exe --no-upload
 """
 
-UPLOAD_EXAMPLE = """{
-  "url": "http://收集方的地址:8790/upload",
-  "token": "收集方给你的口令"
-}
-"""
+
+def make_readme(upload_configured=False):
+    """使用说明：配了上传地址就告诉玩家「什么都不用做」，否则教他导出。"""
+    middle = UPLOAD_HINT if upload_configured else EXPORT_HINT
+    return README_HEAD + middle + README_TAIL
+
+
+def write_upload_config(folder, url, token):
+    """把上传地址写进发布包；返回写出的文件路径。"""
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "upload.json"
+    path.write_text(
+        json.dumps({"url": url, "token": token}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return path
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="打发布包")
     parser.add_argument("--name", default="GuandanAI")
+    parser.add_argument("--upload-url", default=None, help="回传地址；给了就预先配好，朋友无需改动")
+    parser.add_argument("--token", default="guandan-local", help="回传口令（配合 --upload-url）")
     args = parser.parse_args(argv)
+
+    if args.upload_url and not args.upload_url.startswith(("http://", "https://")):
+        raise SystemExit("--upload-url 必须以 http:// 或 https:// 开头")
 
     exe = build(name=args.name, clean=True, one_file=False, keep_work=False)
     folder = exe.parent
 
     readme = folder / "使用说明.txt"
-    readme.write_text(README, encoding="utf-8-sig")
-    (folder / "upload.json.example").write_text(UPLOAD_EXAMPLE, encoding="utf-8")
+    readme.write_text(make_readme(bool(args.upload_url)), encoding="utf-8-sig")
+
+    if args.upload_url:
+        path = write_upload_config(folder, args.upload_url, args.token)
+        print(f"已写入回传配置：{path}")
+    else:
+        (folder / "upload.json.example").write_text(
+            json.dumps(
+                {"url": "http://收集方的地址:8790/upload", "token": "收集方给你的口令"},
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
     zip_path = DIST / f"{args.name}-win64.zip"
     if zip_path.exists():
@@ -99,6 +146,10 @@ def main(argv=None) -> int:
     print(f"程序文件夹：{folder}  ({total / 1024 / 1024:.1f} MB)")
     print(f"发布包：{zip_path}  ({zip_path.stat().st_size / 1024 / 1024:.1f} MB)")
     print("把这个 zip 解压，双击里面的 exe 就能玩。")
+    if args.upload_url:
+        print("朋友解压后无需任何配置，每局自动回传。")
+    else:
+        print("朋友打完后点「导出对局」，把下载的文件发回来。")
     return 0
 
 

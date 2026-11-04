@@ -4,6 +4,7 @@
 端口回退逻辑正确、说明文件没被写空。
 """
 
+import json
 from pathlib import Path
 
 import pytest
@@ -79,15 +80,52 @@ def test_pick_port_gives_up_with_readable_error():
 
 
 def test_release_readme_mentions_how_to_start():
-    text = package_exe.README
+    text = package_exe.make_readme(False)
     for keyword in ("解压", "双击", "GuandanAI.exe", "浏览器"):
         assert keyword in text
 
 
 def test_release_readme_mentions_the_native_window_and_webview2():
-    text = package_exe.README
+    text = package_exe.make_readme(False)
     assert "窗口" in text
     assert "WebView2" in text or "Edge" in text
+
+
+def test_readme_without_upload_url_teaches_the_export_button():
+    """离线包：让玩家点「导出对局」把文件发回来，不能说成「自动上传」。"""
+    text = package_exe.make_readme(False)
+    assert "导出对局" in text
+    assert "自动上传" not in text
+
+
+def test_readme_with_upload_url_says_it_uploads_automatically():
+    """配好回传地址的包：告诉玩家自动上传、什么都不用做。"""
+    text = package_exe.make_readme(True)
+    assert "自动上传" in text
+    assert "无需操作" in text
+
+
+def test_write_upload_config_writes_valid_json(workdir):
+    folder = workdir / "发布包"
+    path = package_exe.write_upload_config(
+        folder, "https://example.com/upload", "s3cret-token"
+    )
+
+    assert path == folder / "upload.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data == {"url": "https://example.com/upload", "token": "s3cret-token"}
+
+
+def test_upload_url_must_start_with_http(monkeypatch):
+    """--upload-url 不是 http(s) 开头时直接退出，不能白跑一遍打包。"""
+
+    def explode(*args, **kwargs):
+        raise AssertionError("参数不合法时不该开始打包")
+
+    monkeypatch.setattr(package_exe, "build", explode)
+    with pytest.raises(SystemExit) as error:
+        package_exe.main(["--upload-url", "ftp://example.com/upload"])
+    assert "http" in str(error.value)
 
 
 def test_window_host_files_are_part_of_the_build():

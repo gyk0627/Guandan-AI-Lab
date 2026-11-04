@@ -78,6 +78,57 @@ def test_index_page_is_served():
         assert status == 200
         assert "掼蛋" in html
         assert "api/play" in html
+        assert "导出对局" in html, "界面要有「导出对局」按钮，不会配网络的人也能把记录发回来"
+
+
+def test_export_returns_the_latest_record():
+    """点「导出对局」拿到的是这一局的 jsonl，能直接发给别人。"""
+    with running_server(seed=7, level="2") as base:
+        _, state = get_json(base + "/api/state")
+        post(base + "/api/play", {"cards": [state["hand"][0]]})
+
+        request = urllib.request.Request(base + "/api/export")
+        with urllib.request.urlopen(request, timeout=10) as response:
+            body = response.read().decode("utf-8")
+            disposition = response.headers.get("Content-Disposition", "")
+
+    rows = [json.loads(line) for line in body.splitlines() if line.strip()]
+    assert rows[0]["event"] == "game_start"
+    assert any(row["event"] == "turn" for row in rows)
+    assert "attachment" in disposition
+    assert "human_" in disposition and ".jsonl" in disposition
+
+
+def test_export_post_saves_the_file_and_reports_the_path():
+    """窗口版没有下载框，所以由服务端直接存到「下载」并回报路径。"""
+    import os
+
+    from pathlib import Path
+
+    target = Path(__file__).resolve().parent.parent / ".test_tmp" / "export_target"
+    target.mkdir(parents=True, exist_ok=True)
+    for stale in target.glob("human_*.jsonl"):
+        stale.unlink()
+
+    previous = os.environ.get("GUANDAN_EXPORT_DIR")
+    os.environ["GUANDAN_EXPORT_DIR"] = str(target)
+    try:
+        with running_server(seed=11, level="2") as base:
+            _, state = get_json(base + "/api/state")
+            post(base + "/api/play", {"cards": [state["hand"][0]]})
+            status, result = post(base + "/api/export", {})
+    finally:
+        if previous is None:
+            os.environ.pop("GUANDAN_EXPORT_DIR", None)
+        else:
+            os.environ["GUANDAN_EXPORT_DIR"] = previous
+
+    assert status == 200
+    saved = Path(result["saved"])
+    assert saved.exists()
+    assert saved.parent == target
+    assert result["bytes"] == saved.stat().st_size > 200
+    assert saved.name.startswith("human_") and saved.suffix == ".jsonl"
 
 
 def test_initial_state():
