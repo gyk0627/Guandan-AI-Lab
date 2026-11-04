@@ -3,11 +3,11 @@ chcp 65001 >nul
 cd /d "%~dp0.."
 
 echo ============================================================
-echo  掼蛋人机对战
+echo   Guandan: human vs AI  (web GUI)
 echo ============================================================
-echo  关闭本窗口即结束。
+echo   Close this window to stop the server.
 echo.
 
-".venv\Scripts\python.exe" -m interface.web_server %*
+".venv\Scripts\python.exe" -X utf8 -m interface.web_server %*
 
 pause

@@ -1,0 +1,17 @@
+{
+  "a": "neural",
+  "b": "random",
+  "games": 400,
+  "a_wins": 372,
+  "b_wins": 28,
+  "a_win_rate": 0.93,
+  "ci_low": 0.9006904336040151,
+  "ci_high": 0.9511286954802596,
+  "a_as_team_a": 0.925,
+  "a_as_team_b": 0.935,
+  "pairs_both_win": 175,
+  "pairs_split": 22,
+  "pairs_both_lose": 3,
+  "avg_steps": 117.37,
+  "avg_ms": 272.6739002500017
+}

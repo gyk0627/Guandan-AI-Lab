@@ -1,0 +1,6 @@
+# Windows 批处理必须是 CRLF，否则 cmd.exe 会把多行粘在一起解析
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# PowerShell 脚本同理（换行符统一，避免中文被按 ANSI 解读）
+*.ps1 text eol=crlf

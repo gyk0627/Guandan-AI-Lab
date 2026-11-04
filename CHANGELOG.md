@@ -7,6 +7,39 @@
 
 ---
 
+## 2026-11-04（19:48）— 修复 `start_gui.bat` 双击报错（LF + 中文），并钉死批处理格式
+
+> 现象（负责人截图）：双击 `interface/start_gui.bat` 后窗口里全是
+> `'?echo' 不是内部或外部命令`、`'C:\...\interface\.."' 不是内部或外部命令`、`系统找不到指定的路径`。
+
+### 根因
+
+这个文件是 **LF 换行 + UTF-8 中文** 写的。cmd.exe 读 LF 换行的批处理会逐字符错位：
+`chcp 65001` 之后再遇到中文，它把下一行的 `echo` 从中间开始解析，于是 `cd /d "%~dp0.."` 的引号配对也错了，
+报出来的错误看起来和真实原因毫无关系。**批处理文件必须 CRLF 且纯 ASCII。**
+
+### 修法（三层，防止再犯）
+
+1. `interface/start_gui.bat` 重写：纯 ASCII（中文提示交给 Python 打印）+ CRLF + 补 `-X utf8`。
+2. 新增 `.gitattributes`：`*.bat`/`*.cmd`/`*.ps1` 强制 `eol=crlf`，避免 checkout 后又变回 LF。
+   （本仓库 `core.autocrlf=false`，所以之前按字节原样存进了 LF。）
+3. 新增 `tests/test_bat_scripts.py` **4 条**：`.bat` 不许含非 ASCII 字节、必须 CRLF、
+   引用的 `.venv\Scripts\python.exe` 必须存在、仓库里至少有一个 `.bat`。
+   以后谁再写坏，测试直接红，不用等用户双击才发现。
+
+### 其余 5 个 .bat 一并转成 CRLF
+
+`run_benchmark.bat`、`run_speed_test.bat`、`run_train_speed.bat`、`run_train_gui.bat`、`tools/run_pipeline.bat`
+（它们当初也是 LF，只是全 ASCII 侥幸能用，一并规范化）。
+
+### 验证
+
+- 真启动：`cmd /c interface\start_gui.bat --port 8799 --no-browser` → `GET /` 返回 **200**、
+  页面 17,650 字节且含"掼蛋"，`GET /api/state` 返回 **200**；测完已关闭，端口已释放。
+- 测试：**382 → 386**，全量 `386 passed in 21.64s`。
+
+---
+
 ## 2026-11-04（19:20）— 训练进度网页 + 模型改为入库 + 382 测试
 
 > 起因：负责人问"能不能做个显示实时训练进度的插件"，以及"为什么模型在 git 上找不到"。
