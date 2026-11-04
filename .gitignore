@@ -42,3 +42,5 @@ training/data_selfplay/*.jsonl
 training/data_selfplay/*.npz
 training/data_selfplay/*.manifest.json
 evaluation/*.csv
+
+dist/

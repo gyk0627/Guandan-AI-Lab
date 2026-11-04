@@ -40,11 +40,34 @@ cd C:\Users\qq165\Documents\deepseek-harness\default-workspace\GuanDan-AI-Lab
   牌不在手里、牌型不合法、没轮到你、领出阶段过牌，都会被拒绝并返回原因。
 - 因此**改前端、改 JS、直接发 HTTP 请求都没有用**，规则由服务端说了算。
 
+## 打包成 exe（给对方玩、或者自己不想开命令行）
+
+在仓库根目录双击 `build_exe.bat`，或者：
+
+```powershell
+& .\.venv\Scripts\python.exe -m tools.package_exe
+```
+
+产物：
+
+| 文件 | 说明 |
+|---|---|
+| `dist\GuandanAI\GuandanAI.exe` | 双击就能玩；旁边那一堆文件要一起保留 |
+| `dist\GuandanAI\使用说明.txt` | 给玩家看的说明（规则、操作、常见问题） |
+| `dist\GuandanAI-win64.zip` | 8.9 MB，可以直接发给别人 |
+
+图标是 `guandan.ico`（`tools\make_icon.py` 用 Pillow 画的），启动器是 `app.py`
+（自动挑空闲端口、自动开浏览器、把对局记录写到 exe 旁边的 `replay/`）。
+
+**打包版用启发式 AI**：神经网络要 PyTorch（2 GB+），不进 exe；两者在实验室里打成 53:47。
+**验证方式**：`python -m tools.exe_smoke --exe dist\GuandanAI\GuandanAI.exe`
+会真的启动 exe、打完一整局、检查排名与对局记录。
+
 ## 已知限制
 
 - 单人本地用，没做多用户会话隔离（同时开两个浏览器标签会共用同一局）。
 - 界面没有动画、没有音效，牌面是文字 + 花色符号。
-- AI 的强度取决于 `models/` 里最新的模型；目前是行为克隆的 51.5% 版本
+- AI 的强度取决于 `models/` 里最新的模型；目前是行为克隆的 0.7500 版本
   （见 [models/README.md](../models/README.md)），**不是强化学习产物**。
 
 ## 自测

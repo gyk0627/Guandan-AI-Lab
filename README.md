@@ -232,6 +232,9 @@ GuanDan-AI-Lab/
 ├─ interface/                    ← 🟠 人机对战界面（本地网页版，只用标准库）
 │  ├─ web_server.py              ← 本地 HTTP 服务（http.server，只听 127.0.0.1:8765）
 │  ├─ index.html                 ← 单文件前端（原生 JS，无框架、无 CDN）
+│  ├─ app.py                     ← exe 启动器（挑端口 / 开浏览器 / 关窗退出）
+│  ├─ guandan.ico                ← exe 图标（tools/make_icon.py 现画）
+│  ├─ train_monitor.html         ← 训练进度网页
 │  ├─ start_gui.bat              ← 双击启动并自动开浏览器
 │  └─ README.md                  ← 界面用法与设计约束（负责人撰写，勿改）
 └─ .venv/                        ← Python 虚拟环境（3.13.17 + torch 2.11.0+cu128）
@@ -692,8 +695,8 @@ $env:PYTHONIOENCODING='utf-8'
 - 玩家固定 **0 号位（A 队）**，队友 2 号，对手 1 / 3 号。
 - **全部状态在服务端**：浏览器只提交「我要出这几张牌」，由 `GameState.play()` 校验合法性。
   改前端、或者直接用 HTTP 发请求，**都绕不过规则**。
-- AI 默认用 `models/` 下**最新**的模型（当前 `bc_v7_5000_40ep.pt`，对启发式 51.5% 那个）；
-  加载失败会自动退回启发式。想指定模型用 `--model models\bc_v7_5000_40ep.pt`。
+- AI 默认用 `models/` 下**最新**的模型（当前 `bc_games_20261103_v3.pt`，验证一致率 0.7500、对启发式 53% 那个）；
+  加载失败会自动退回启发式。想指定模型用 `--model models\bc_games_20261103_v3.pt`。
 - **只用标准库 `http.server`**，前端是单文件原生 JS：**不联网、不需要 Flask / Node**，离线可用。
 - 测试：`tests/test_web.py` 有 8 条端到端测试（其中一条通过真实 HTTP 把一整局打完）。
 
@@ -708,6 +711,41 @@ $env:PYTHONIOENCODING='utf-8'
 # 只跑界面测试（8 条，约 6 秒）
 & .\.venv\Scripts\python.exe -m pytest tests/test_web.py -q
 ```
+
+### 6.9 双击即玩的 exe 包（不用装 Python）
+
+给别人玩、或者自己懒得开命令行时用这个。仓库根目录双击 **`build_exe.bat`**，
+等一两分钟，得到：
+
+```
+dist\GuandanAI\GuandanAI.exe      ← 双击就能玩（旁边那一堆文件要一起保留）
+dist\GuandanAI\使用说明.txt
+dist\GuandanAI-win64.zip          ← 8.9 MB，可以直接发给别人
+```
+
+命令行等价写法：
+
+```powershell
+& .\.venv\Scripts\python.exe -m tools.package_exe           # 打包 + 写说明 + 压 zip
+& .\.venv\Scripts\python.exe -m tools.build_exe --onedir    # 只出文件夹
+& .\.venv\Scripts\python.exe -m tools.build_exe             # 只出单文件 exe
+```
+
+**做了什么**：`interface\app.py` 是 exe 的启动器（自动挑空闲端口、自动开浏览器、
+关窗口即退出），PyInstaller 把 `interface\index.html` 一起塞进包里；
+图标由 `tools\make_icon.py` 现画（`interface\guandan.ico`，Pillow 生成，多尺寸）。
+
+**诚实说明**
+
+- 打包版用**启发式策略**：会算最快出完、会抢先手、会给队友让路，但不记牌、不猜牌。
+  它和神经网络版在实验室里打成 **53 : 47** 左右，属于同一档次；
+  想用神经网络就在仓库里跑网页版（要 PyTorch，2 GB 以上，不进 exe）。
+- 发布包用的是**文件夹形态**（onedir）而不是单文件：单文件版启动时要把运行库解压到
+  系统临时目录，本机沙箱禁止这个写操作、无法验证，所以交付的是实测过的那份。
+  你自己电脑上想要单文件，跑 `tools.build_exe` 就行。
+- 实测（`tools\exe_smoke.py`，从解压出来的 zip 里跑）：起进程 → 打完一整局
+  （25 步、出牌 8 次、过牌 17 次、排名 4 人）→ 对局记录 100 行 / 59.6 KB。
+  复现：`& .\.venv\Scripts\python.exe -m tools.exe_smoke --exe dist\GuandanAI\GuandanAI.exe`
 
 ---
 

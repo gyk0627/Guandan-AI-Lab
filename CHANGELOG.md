@@ -7,7 +7,48 @@
 
 ---
 
-## 2026-11-04（19:48）— 修复 `start_gui.bat` 双击报错（LF + 中文），并钉死批处理格式
+## 2026-11-04（20:05）— 工具：人机对战打包成双击即玩的 exe（含图标、使用说明、发布 zip）
+
+> 目标（负责人 m02790）：弄不到服务器、也没时间，先把「能做的」做好——
+> 比如把网页人机对战做成 exe 包方便使用，把测速模块整合优化。
+
+### 新增
+
+1. `interface/app.py`：exe 启动器。从 8765 起**自动往后找空闲端口**（最多试 20 个）、
+   自动开浏览器、把对局记录写到 exe 旁边的 `replay/`、关黑窗口即退出。
+2. `tools/make_icon.py`：用 Pillow 现画图标（深绿圆角底 + 白牌 + 红桃），
+   输出 `interface/guandan.ico`（16/32/48/64/128/256 六个尺寸 29 KB）和各尺寸 PNG 预览。
+3. `tools/build_exe.py`：PyInstaller 封装。`--onefile`（单文件）/ `--onedir`（文件夹），
+   排除 torch/numpy/pandas 等大包（打包版用启发式策略，纯 Python）。
+4. `tools/package_exe.py`：一键出发布包——打包 → 写 `使用说明.txt`（UTF-8 BOM，记事本不乱码）
+   → 压 `dist/GuandanAI-win64.zip`。
+5. `tools/exe_smoke.py`：端到端冒烟测试。起 exe → 用「提示」第一手打完一整局 →
+   校验排名 4 人、对局记录行数。**这是「真的能玩」的唯一证据**。
+6. `build_exe.bat`（纯 ASCII + CRLF）+ `interface/__init__.py`（让 `interface` 成为正规包，PyInstaller 好找）。
+7. `tests/test_exe_package.py` **7 条**：入口/网页存在、ico 文件头合法、大包被排除、
+   源码运行时目录正确、端口回退跳过占用、20 个端口都占用时报可读错误、说明文件含「解压/双击」。
+
+### 为什么交付「文件夹版」而不是「单文件版」
+
+单文件 exe 启动时 PyInstaller 要把 VCRUNTIME140.dll 等解压到系统临时目录；
+本机沙箱禁止这个写操作，报 `[PYI-...:ERROR] Failed to extract VCRUNTIME140.dll: failed to open target file!`。
+**没法在本机验证的东西不交付**，所以发布包用 onedir 文件夹形态（也能双击、启动更快）；
+想要单文件在普通桌面环境跑 `python -m tools.build_exe` 即可（本机也能构建出来，只是启动会踩沙箱）。
+
+### 实测
+
+- 构建：`python -m tools.package_exe` → 文件夹 20.2 MB、zip **8.9 MB**、耗时 4.2 秒。
+- 从 zip 解压后的干净目录跑 `tools.exe_smoke`：起进程 → 界面 200 →
+  一局 **25 步 / 出牌 8 次 / 过牌 17 次 / 排名 4 人** → 记录 `human_20261104_200437_776330.jsonl` **100 行 / 59.6 KB** → 通过。
+- 图标：从 exe 抽出 32×32 图标核对，就是画的那张牌。
+- 测试：**386 → 393**，全量 `393 passed in 26.04s`。
+
+### 诚实边界
+
+打包版 AI 是**启发式**（不记牌、不猜牌），和神经网络版在实验室打成 53:47，同一档次；
+神经网络要 PyTorch（2 GB+），不进 exe。`dist/` 已加进 `.gitignore`（构建产物不入库）。
+
+
 
 > 现象（负责人截图）：双击 `interface/start_gui.bat` 后窗口里全是
 > `'?echo' 不是内部或外部命令`、`'C:\...\interface\.."' 不是内部或外部命令`、`系统找不到指定的路径`。
